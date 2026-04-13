@@ -1,0 +1,27 @@
+20250216:100252 EDI_History Setup should not overwrite existing data.<br />
+Setup: directory /var/www/openemr/sites/default/documents/edi<br />
+created folder /var/www/openemr/sites/default/documents/edi/history<br />
+created folder /var/www/openemr/sites/default/documents/edi/history/csv<br />
+created folder /var/www/openemr/sites/default/documents/edi/history/archive<br />
+created folder /var/www/openemr/sites/default/documents/edi/history/log<br />
+created folder /var/www/openemr/sites/default/documents/edi/history/tmp
+folder for f837 exists /var/www/openemr/sites/default/documents/edi<br />
+created type folder /var/www/openemr/sites/default/documents/edi/history/f997<br />
+created type folder /var/www/openemr/sites/default/documents/edi/history/f276<br />
+created type folder /var/www/openemr/sites/default/documents/edi/history/f277<br />
+created type folder /var/www/openemr/sites/default/documents/edi/history/f270<br />
+created type folder /var/www/openemr/sites/default/documents/edi/history/f271<br />
+created type folder /var/www/openemr/sites/default/documents/edi/history/f278<br />
+
+20250216:100252 _GET request 
+ csvtbllist => yes  csrf_token_form => c3f1c61fcb66f9c5f9cd78b9f92d5b0a0ec621db 
+20250216:100252 _GET request 
+ srvinfo => yes  csrf_token_form => c3f1c61fcb66f9c5f9cd78b9f92d5b0a0ec621db 
+20250216:100252 _GET request 
+ loglist => yes  csrf_token_form => c3f1c61fcb66f9c5f9cd78b9f92d5b0a0ec621db 
+20250216:100252 _GET request 
+ archlist => yes  csrf_token_form => c3f1c61fcb66f9c5f9cd78b9f92d5b0a0ec621db 
+20250216:100252 csv_archive_select_list: using /var/www/openemr/sites/default/documents/edi/history/archive
+20250216:100201 _GET request 
+ getnotes => yes  csrf_token_form => c3f1c61fcb66f9c5f9cd78b9f92d5b0a0ec621db 
+20250216:100201 User: 192.168.40.209 - February 16, 2025, 10:17 am

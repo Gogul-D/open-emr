@@ -1,0 +1,3093 @@
+
+<html>
+<head>
+<title>{{ 'SOAP'|xlt }}</title>
+    {{ setupHeader() }}
+    <script>
+        // Define template management functions immediately
+        const templateFunctions = {
+            // Load template contexts when section is opened
+            loadTemplateContexts: function() {
+                return new Promise((resolve, reject) => {
+                    const csrfToken = {{ csrfTokenRaw()|json_encode }};
+                    console.log('Loading contexts...');
+                    fetch('../../forms/soap/get_template_data.php?csrf_token_form=' + encodeURIComponent(csrfToken))
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Template data response:', data);
+                            if (data.success && data.contexts) {
+                                const contextSelect = document.getElementById('filterContext');
+                                contextSelect.innerHTML = '<option value="">{{ "Select Context"|xlt }}</option>';
+                                data.contexts.forEach(context => {
+                                    console.log('Adding context:', context);
+                                    contextSelect.innerHTML += `<option value="${context}">${context}</option>`;
+                                });
+                                
+                                // Also populate browse context dropdown
+                                const browseContextSelect = document.getElementById('browseContext');
+                                if (browseContextSelect) {
+                                    browseContextSelect.innerHTML = '<option value="">All Contexts</option>';
+                                    data.contexts.forEach(context => {
+                                        browseContextSelect.innerHTML += `<option value="${context}">${context}</option>`;
+                                    });
+                                }
+                                
+                                // Populate create context datalist
+                                const createContextDatalist = document.getElementById('contextList');
+                                if (createContextDatalist) {
+                                    createContextDatalist.innerHTML = '';
+                                    data.contexts.forEach(context => {
+                                        createContextDatalist.innerHTML += `<option value="${context}">`;
+                                    });
+                                }
+                                
+                                console.log('Contexts loaded:', data.contexts.length);
+                                
+                                // Load categories for the currently selected context
+                                const selectedContext = browseContextSelect.value;
+                                if (selectedContext) {
+                                    templateFunctions.loadBrowseCategories(selectedContext);
+                                }
+                                
+                                resolve(data.contexts);
+                            } else {
+                                console.warn('No contexts found or error:', data);
+                                if (data.debug) {
+                                    console.log('Debug info:', data.debug);
+                                }
+                                reject(new Error('No contexts found or error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error loading contexts:', error);
+                            const container = document.getElementById('templates-container');
+                            container.innerHTML = '<div class="alert alert-danger">Error loading templates. Check console for details.</div>';
+                            reject(error);
+                        });
+                });
+            },
+
+            // Load browse categories
+            loadBrowseCategories: function(context = '') {
+                return new Promise((resolve, reject) => {
+                    if (!context) {
+                        // Clear category dropdown when no context selected
+                        const browseCategorySelect = document.getElementById('browseCategory');
+                        if (browseCategorySelect) {
+                            browseCategorySelect.innerHTML = '<option value="">All Categories</option>';
+                            browseCategorySelect.value = '';
+                        }
+                        const createCategoryDatalist = document.getElementById('categoryList');
+                        if (createCategoryDatalist) {
+                            createCategoryDatalist.innerHTML = '';
+                        }
+                        resolve([]);
+                        return;
+                    }
+                    
+                    const csrfToken = {{ csrfTokenRaw()|json_encode }};
+                    const url = '../../forms/soap/get_template_data.php?action=get_categories&context=' + encodeURIComponent(context) + '&csrf_token_form=' + encodeURIComponent(csrfToken);
+                    
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.categories) {
+                                // Update browse category dropdown
+                                const browseCategorySelect = document.getElementById('browseCategory');
+                                if (browseCategorySelect) {
+                                    browseCategorySelect.innerHTML = '<option value="">All Categories</option>';
+                                    data.categories.forEach(category => {
+                                        browseCategorySelect.innerHTML += `<option value="${category}">${category}</option>`;
+                                    });
+                                    browseCategorySelect.value = '';
+                                }
+                                
+                                // Update create category datalist
+                                const createCategoryDatalist = document.getElementById('categoryList');
+                                if (createCategoryDatalist) {
+                                    createCategoryDatalist.innerHTML = '';
+                                    data.categories.forEach(category => {
+                                        createCategoryDatalist.innerHTML += `<option value="${category}">`;
+                                    });
+                                }
+                                
+                                resolve(data.categories);
+                            } else {
+                                reject(new Error('No categories found or error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error loading categories:', error);
+                            reject(error);
+                        });
+                });
+            },
+
+            // Load browse templates
+            loadBrowseTemplates: function(context = '', category = '') {
+                return new Promise((resolve, reject) => {
+                    const csrfToken = {{ csrfTokenRaw()|json_encode }};
+                    const url = '../../forms/soap/get_template_data.php?action=get_templates&context=' + encodeURIComponent(context) + '&category=' + encodeURIComponent(category) + '&csrf_token_form=' + encodeURIComponent(csrfToken);
+                    
+                    console.log('Loading templates with URL:', url);
+                    
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => {
+                                if (data.success && data.templates) {
+                                    const templateList = document.getElementById('templateList');
+                                    if (templateList) {
+                                        templateList.innerHTML = '';
+                                        
+                                        if (data.templates.length === 0) {
+                                            templateList.innerHTML = '<li class="list-group-item text-muted">No templates found</li>';
+                                            resolve([]);
+                                            return;
+                                        }
+                                        
+                                        data.templates.forEach(template => {
+                                            const deleteBtn = template.can_delete ? 
+                                                `<button class="btn btn-sm btn-outline-danger ms-2" onclick="deleteTemplate(${template.id})" title="Delete Template">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>` : '';
+                                                
+                                            templateList.innerHTML += `
+                                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                    <div class="flex-grow-1 me-3" style="min-width: 0;">
+                                                        <strong style="word-break: break-word;">${template.name}</strong>
+                                                        <br><small class="text-muted">${template.context} - ${template.category}</small>
+                                                    </div>
+                                                    <div class="flex-shrink-0 d-flex gap-2">
+                                                        <button class="btn btn-sm btn-info" onclick="viewTemplate(${template.id})">
+                                                            <i class="fas fa-eye"></i> View
+                                                        </button>
+                                                        ${deleteBtn}
+                                                    </div>
+                                                </li>
+                                            `;
+                                        });
+                                    }
+                                    
+                                    resolve(data.templates);
+                                } else {
+                                    reject(new Error('No templates found or error'));
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error loading templates:', error);
+                                reject(error);
+                            });
+                });
+            },
+
+            // Load templates section
+            loadTemplatesSection: function() {
+                console.log('Loading templates section...');
+                const templatesSection = document.getElementById('templates');
+                const header = document.querySelector('.section-header[onclick="window.handleTemplatesSectionClick()"]');
+                const parentSection = header.closest('.clinical-section');
+                
+                if (templatesSection.classList.contains('active')) {
+                    templatesSection.classList.remove('active');
+                    header.classList.remove('active');
+                    parentSection.classList.add('collapsed');
+                } else {
+                    templatesSection.classList.add('active');
+                    header.classList.remove('active');
+                    parentSection.classList.remove('collapsed');
+                    this.loadTemplateContexts();
+                }
+            },
+
+            // Load categories for selected context
+            loadTemplateCategories: function() {
+                const context = document.getElementById('filterContext').value;
+                console.log('Loading categories for context:', context);
+                
+                if (!context) {
+                    document.getElementById('filterCategory').innerHTML = '<option value="">{{ "Select Category"|xlt }}</option>';
+                    document.getElementById('templates-container').innerHTML = '';
+                    return Promise.resolve();
+                }
+
+                return new Promise((resolve, reject) => {
+                    const csrfToken = {{ csrfTokenRaw()|json_encode }};
+                    fetch(`../../forms/soap/get_template_data.php?csrf_token_form=${encodeURIComponent(csrfToken)}&context=${encodeURIComponent(context)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.categories) {
+                                const categorySelect = document.getElementById('filterCategory');
+                                categorySelect.innerHTML = '<option value="">{{ "Select Category"|xlt }}</option>';
+                                data.categories.forEach(category => {
+                                    categorySelect.innerHTML += `<option value="${category}">${category}</option>`;
+                                });
+                                resolve(data.categories);
+                            } else {
+                                reject(new Error('No categories found or error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error loading categories:', error);
+                            reject(error);
+                        });
+                });
+            },
+
+            // Load templates list
+            loadTemplatesList: function() {
+                const context = document.getElementById('filterContext').value;
+                const category = document.getElementById('filterCategory').value;
+                
+                if (!context || !category) {
+                    document.getElementById('templates-container').innerHTML = '';
+                    return Promise.resolve();
+                }
+
+                const csrfToken = {{ csrfTokenRaw()|json_encode }};
+                return fetch(`../../forms/soap/get_template_data.php?csrf_token_form=${encodeURIComponent(csrfToken)}&context=${encodeURIComponent(context)}&category=${encodeURIComponent(category)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.templates) {
+                            const container = document.getElementById('templates-container');
+                            container.innerHTML = '';
+                            data.templates.forEach(template => {
+                                const item = createDraggableItem('template', template.template_name, template.template_content);
+                                container.appendChild(item);
+                            });
+                            initializeDragAndDrop();
+                        }
+                    })
+                    .catch(error => console.error('Error loading templates:', error));
+            }
+        };
+
+        // Make functions globally available and properly bound
+        // Make all template functions globally available
+        window.templateFunctions = templateFunctions;
+        
+        window.handleTemplatesSectionClick = function() {
+            templateFunctions.loadTemplatesSection.call(templateFunctions);
+        };
+
+        window.loadTemplateCategories = function() {
+            return templateFunctions.loadTemplateCategories();
+        };
+
+        window.loadTemplatesList = function() {
+            return templateFunctions.loadTemplatesList();
+        };
+
+        window.loadTemplateContexts = function() {
+            return templateFunctions.loadTemplateContexts();
+        };
+        window.selectTemplate = function(templateId) {
+            const csrfToken = {{ csrfTokenRaw()|json_encode }};
+            fetch(`../../forms/soap/get_template_data.php?action=get_template&id=${templateId}&csrf_token_form=${encodeURIComponent(csrfToken)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.template) {
+                        // Create draggable item from template
+                        const item = createDraggableItem('template', data.template.name, data.template.content);
+                        
+                        // Add to SOAP note (you may need to adjust this based on your drag-and-drop implementation)
+                        const soapNote = document.getElementById('soap_note');
+                        if (soapNote) {
+                            soapNote.value += (soapNote.value ? '\n\n' : '') + data.template.content;
+                        }
+                        
+                        // Close modal
+                        $('#templateModal').modal('hide');
+                        
+                        // Show success message
+                        alert('Template added to SOAP note successfully!');
+                    } else {
+                        alert('Error loading template: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error selecting template:', error);
+                    alert('Error selecting template');
+                });
+        };
+
+        window.viewTemplate = function(templateId) {
+            const csrfToken = {{ csrfTokenRaw()|json_encode }};
+            fetch(`../../forms/soap/get_template_data.php?action=get_template&id=${templateId}&csrf_token_form=${encodeURIComponent(csrfToken)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.template) {
+                        // Show template content in a modal
+                        showTemplateContentModal(data.template);
+                    } else {
+                        alert('Error loading template: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error viewing template:', error);
+                    alert('Error loading template');
+                });
+        };
+
+        window.showTemplateContentModal = function(template) {
+            // Create a simple modal to show template content
+            const modalHtml = `
+                <div class="modal fade" id="viewTemplateModal" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-lg" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">${template.name}</h5>
+                                <button type="button" class="close" data-dismiss="modal">
+                                    <span>&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-2">
+                                    <strong>Context:</strong> ${template.context}<br>
+                                    <strong>Category:</strong> ${template.category}
+                                </div>
+                                <hr>
+                                <div class="template-content" style="white-space: pre-wrap; font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 4px;">
+                                    ${template.content}
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if present
+            $('#viewTemplateModal').remove();
+
+            // Add modal to body
+            $('body').append(modalHtml);
+
+            // Show modal
+            $('#viewTemplateModal').modal('show');
+
+            // Clean up modal when hidden
+            $('#viewTemplateModal').on('hidden.bs.modal', function() {
+                // Reset filter dropdowns
+                document.getElementById('filterContext').value = '';
+                document.getElementById('filterCategory').innerHTML = '<option value="">{{ "Select Category"|xlt }}</option>';
+                // Clear templates container
+                document.getElementById('templates-container').innerHTML = '';
+                // Reset browse selects
+                document.getElementById('browseContext').value = '';
+                templateFunctions.loadBrowseCategories('');
+                templateFunctions.loadBrowseTemplates('', '');
+                // Reset create inputs
+                const templateContext = document.getElementById('templateContext');
+                if (templateContext) templateContext.value = '';
+                const templateCategory = document.getElementById('templateCategory');
+                if (templateCategory) templateCategory.value = '';
+                // Clear template list
+                document.getElementById('templateList').innerHTML = '<li class="list-group-item text-muted">Select a context and category to view templates</li>';
+                $(this).remove();
+            });
+        };
+
+        window.deleteTemplate = function(templateId) {
+            if (!confirm('Are you sure you want to delete this template? This action cannot be undone.')) {
+                return;
+            }
+            
+            const csrfToken = {{ csrfTokenRaw()|json_encode }};
+            fetch('../../forms/soap/manage_templates.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=delete_template&template_id=${templateId}&csrf_token_form=${encodeURIComponent(csrfToken)}`
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Reload templates list
+                        const context = document.getElementById('browseContext').value;
+                        const category = document.getElementById('browseCategory').value;
+                        templateFunctions.loadBrowseTemplates(context, category);
+                        
+                        // Reload contexts in case some context is now empty
+                        templateFunctions.loadTemplateContexts();
+                        
+                        // Reload categories for current context
+                        templateFunctions.loadBrowseCategories(context);
+                        
+                        alert('Template deleted successfully!');
+                    } else {
+                        alert('Error deleting template: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting template:', error);
+                    alert('Error deleting template');
+                });
+        };
+
+        window.onContextChange = function(value) {
+            console.log('Context changed to:', value);
+            if (value) {
+                window.loadTemplateCategories()
+                    .then(() => {
+                        console.log('Categories loaded successfully');
+                    })
+                    .catch(error => {
+                        console.error('Error loading categories:', error);
+                    });
+            } else {
+                document.getElementById('filterCategory').innerHTML = '<option value="">{{ "Select Category"|xlt }}</option>';
+                document.getElementById('templates-container').innerHTML = '';
+            }
+        };
+
+        window.onCategoryChange = function(value) {
+            console.log('Category changed to:', value);
+            if (value) {
+                window.loadTemplatesList()
+                    .then(() => {
+                        console.log('Templates loaded successfully');
+                    })
+                    .catch(error => {
+                        console.error('Error loading templates:', error);
+                    });
+            } else {
+                document.getElementById('templates-container').innerHTML = '';
+            }
+        };
+
+        window.onBrowseContextChange = function(value) {
+            console.log('Browse context changed to:', value);
+            const category = document.getElementById('browseCategory').value;
+            templateFunctions.loadBrowseTemplates(value, category)
+                .then(() => {
+                    console.log('Browse templates loaded successfully');
+                })
+                .catch(error => {
+                    console.error('Error loading browse templates:', error);
+                });
+        };
+
+        window.onBrowseCategoryChange = function(value) {
+            console.log('Browse category changed to:', value);
+            const context = document.getElementById('browseContext').value;
+            templateFunctions.loadBrowseTemplates(context, value)
+                .then(() => {
+                    console.log('Browse templates loaded successfully');
+                })
+                .catch(error => {
+                    console.error('Error loading browse templates:', error);
+                });
+        };
+
+        window.hideTemplateModal = function() {
+            console.log('Hiding template modal...');
+            // Get modal element
+            const modal = $('#templateModal');
+            
+            // Hide modal
+            modal.removeClass('show');
+            modal.css('display', 'none');
+            
+            // Remove backdrop and cleanup
+            $('.modal-backdrop').remove();
+            $('body').removeClass('modal-open');
+            
+            // Remove any alert dialogs that might be open
+            $('.alert').remove();
+            
+            // Clear form
+            document.getElementById('templateForm').reset();
+            
+            // Reset filter dropdowns first
+            document.getElementById('filterContext').value = '';
+            document.getElementById('filterCategory').innerHTML = '<option value="">{{ "Select Category"|xlt }}</option>';
+            
+            // Clear templates container
+            document.getElementById('templates-container').innerHTML = '';
+            
+            // Refresh dropdowns after modal close
+            templateFunctions.loadTemplateContexts().then(() => {
+                templateFunctions.loadBrowseCategories('');
+            });
+            
+            // Reset selects immediately
+            document.getElementById('browseContext').value = '';
+            templateFunctions.loadBrowseCategories('');
+            templateFunctions.loadBrowseTemplates('', '');
+            
+            // Reset create inputs
+            const templateContext = document.getElementById('templateContext');
+            if (templateContext) templateContext.value = '';
+            const templateCategory = document.getElementById('templateCategory');
+            if (templateCategory) templateCategory.value = '';
+            
+            // Clear template list
+            document.getElementById('templateList').innerHTML = '<li class="list-group-item text-muted">Select a context and category to view templates</li>';
+            
+            // Cleanup any lingering styles
+            document.body.style.removeProperty('padding-right');
+        };
+
+        // Initialize event handlers when document is ready
+        $(document).ready(function() {
+            console.log('Initializing template modal handlers...');
+            
+            // Handle close button click
+            $(document).on('click', '#templateModal .close', function() {
+                window.hideTemplateModal();
+            });
+            
+            // Handle cancel button click
+            $(document).on('click', '#templateModal .btn-secondary', function() {
+                window.hideTemplateModal();
+            });
+            
+            // Remove any existing backdrops
+            $('.modal-backdrop').remove();
+            
+            // Prevent clicks inside modal from bubbling up
+            $(document).on('click', '#templateModal .modal-content', function(e) {
+                e.stopPropagation();
+            });
+            
+            // Close modal when clicking outside
+            $(document).on('click', '#templateModal', function(e) {
+                if ($(e.target).is('#templateModal')) {
+                    window.hideTemplateModal();
+                }
+            });
+            
+            // Handle escape key
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape' && $('#templateModal').hasClass('show')) {
+                    window.hideTemplateModal();
+                }
+            });
+            
+            // Handle modal hidden event
+            $('#templateModal').on('hidden.bs.modal', function() {
+                // Reset filter dropdowns
+                document.getElementById('filterContext').value = '';
+                document.getElementById('filterCategory').innerHTML = '<option value="">{{ "Select Category"|xlt }}</option>';
+                // Clear templates container
+                document.getElementById('templates-container').innerHTML = '';
+                // Refresh dropdowns
+                templateFunctions.loadTemplateContexts().then(() => {
+                    templateFunctions.loadBrowseCategories('');
+                });
+                // Reset selects immediately
+                document.getElementById('browseContext').value = '';
+                templateFunctions.loadBrowseCategories('');
+                templateFunctions.loadBrowseTemplates('', '');
+                // Reset create inputs
+                const templateContext = document.getElementById('templateContext');
+                if (templateContext) templateContext.value = '';
+                const templateCategory = document.getElementById('templateCategory');
+                if (templateCategory) templateCategory.value = '';
+                // Clear template list
+                document.getElementById('templateList').innerHTML = '<li class="list-group-item text-muted">Select a context and category to view templates</li>';
+            });
+        });
+    </script>
+    <script>
+        // Template Management Functions
+        // Load categories for selected context
+        function loadTemplateCategories() {
+            const context = document.getElementById('filterContext').value;
+            console.log('Loading categories for context:', context);
+            
+            if (!context) {
+                document.getElementById('filterCategory').innerHTML = '<option value="">{{ "Select Category"|xlt }}</option>';
+                document.getElementById('templates-container').innerHTML = '';
+                return;
+            }
+
+            const csrfToken = {{ csrfTokenRaw()|json_encode }};
+            fetch(`../../forms/soap/get_template_data.php?csrf_token_form=${encodeURIComponent(csrfToken)}&context=${encodeURIComponent(context)}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Categories response:', data); // Debug log
+                    if (data.success && data.categories) {
+                        const categorySelect = document.getElementById('filterCategory');
+                        categorySelect.innerHTML = '<option value="">{{ "Select Category"|xlt }}</option>';
+                        data.categories.forEach(category => {
+                            console.log('Adding category:', category); // Debug log
+                            categorySelect.innerHTML += `<option value="${category}">${category}</option>`;
+                        });
+                        console.log('Categories loaded:', data.categories.length);
+                    } else {
+                        console.warn('No categories found or error:', data);
+                        if (data.debug) {
+                            console.log('Debug info:', data.debug);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading categories:', error);
+                    const categorySelect = document.getElementById('filterCategory');
+                    categorySelect.innerHTML = '<option value="">Error loading categories</option>';
+                });
+        }
+
+        // Load templates for selected context and category
+        function loadTemplatesList() {
+            const context = document.getElementById('filterContext').value;
+            const category = document.getElementById('filterCategory').value;
+            if (!context || !category) {
+                document.getElementById('templates-container').innerHTML = '';
+                return;
+            }
+
+            const csrfToken = {{ csrfTokenRaw()|json_encode }};
+            fetch(`../../forms/soap/get_template_data.php?csrf_token_form=${encodeURIComponent(csrfToken)}&context=${encodeURIComponent(context)}&category=${encodeURIComponent(category)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.templates) {
+                        const container = document.getElementById('templates-container');
+                        container.innerHTML = '';
+                        data.templates.forEach(template => {
+                            const item = createDraggableItem('template', template.template_name, template.template_content);
+                            container.appendChild(item);
+                        });
+                        initializeDragAndDrop();
+                    }
+                })
+                .catch(error => console.error('Error loading templates:', error));
+        }
+
+        // Global patient data storage
+        window.patientData = {
+            fname: '',
+            lname: '',
+            age: '',
+            gender: '',
+            dob: ''
+        };
+
+        // Function to replace template variables with patient data
+        function replaceTemplateVariables(text) {
+            if (!text) return text;
+            
+            console.log('Original template text:', text);
+            console.log('Patient data:', window.patientData);
+            
+            let replacedText = text;
+            
+            // Replace XX with age
+            if (window.patientData && window.patientData.age) {
+                replacedText = replacedText.replace(/\bXX\b/g, window.patientData.age);
+                console.log('Replaced XX with age:', window.patientData.age);
+            } else {
+                console.warn('Age not available in patient data');
+            }
+            
+            // Replace Pt with patient full name
+            if (window.patientData && window.patientData.fname) {
+                const fullName = window.patientData.fname + (window.patientData.lname ? ' ' + window.patientData.lname : '');
+                replacedText = replacedText.replace(/\bPt\b/g, fullName);
+                console.log('Replaced Pt with name:', fullName);
+            } else {
+                console.warn('Patient name not available in patient data');
+            }
+            
+            console.log('Replaced text:', replacedText);
+            return replacedText;
+        }
+
+        window.showAddTemplateModal = function() {
+            // Remove any existing backdrops
+            $('.modal-backdrop').remove();
+            
+            // Get modal element
+            const modal = $('#templateModal');
+            
+            // Reset modal state
+            modal.css('display', 'block');
+            modal.addClass('show');
+            
+            // Add backdrop
+            $('body').append('<div class="modal-backdrop fade show"></div>');
+            $('body').addClass('modal-open');
+            
+            // Hide any previous errors
+            const errorDiv = document.getElementById('templateError');
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
+                errorDiv.textContent = '';
+            }
+            
+            // Load contexts for both browse and create tabs
+            loadTemplateContexts();
+            
+            // Reset browse dropdowns to default
+            document.getElementById('browseContext').value = '';
+            document.getElementById('browseCategory').value = '';
+            document.getElementById('browseCategory').innerHTML = '<option value="">All Categories</option>';
+            
+            // Load all categories for the category dropdown
+            templateFunctions.loadBrowseCategories('');
+            
+            // Clear template list
+            document.getElementById('templateList').innerHTML = '<li class="list-group-item text-muted">Select a context and category to view templates</li>';
+            
+            // Clear form fields first
+            $('#templateName').val('');
+            $('#templateContext').val('');
+            $('#templateCategory').val('');
+            $('#templateContent').val('');
+            
+            // Reset form validation state
+            $('#templateForm')[0].reset();
+            
+            // Switch to create tab
+            $('#create-tab').tab('show');
+            
+            // Small delay to ensure tab switch is complete before showing save button
+            setTimeout(() => {
+                // Show save button
+                $('#saveTemplateBtn').removeClass('d-none');
+                
+                // Focus on template name field
+                $('#templateName').focus();
+            }, 200);
+        };
+        
+        window.hideTemplateModal = function() {
+            // Get modal element
+            const modal = $('#templateModal');
+            
+            // Hide modal
+            modal.removeClass('show');
+            modal.css('display', 'none');
+            
+            // Remove backdrop and cleanup
+            $('.modal-backdrop').remove();
+            $('body').removeClass('modal-open');
+            
+            // Remove any alert dialogs that might be open
+            $('.alert').remove();
+            
+            // Clear form
+            document.getElementById('templateForm').reset();
+            
+            // Reset filter dropdowns first
+            document.getElementById('filterContext').value = '';
+            document.getElementById('filterCategory').innerHTML = '<option value="">{{ "Select Category"|xlt }}</option>';
+            
+            // Clear templates container
+            document.getElementById('templates-container').innerHTML = '';
+            
+            // Refresh dropdowns after modal close
+            templateFunctions.loadTemplateContexts().then(() => {
+                templateFunctions.loadBrowseCategories('');
+            });
+            
+            // Reset selects immediately
+            document.getElementById('browseContext').value = '';
+            templateFunctions.loadBrowseCategories('');
+            templateFunctions.loadBrowseTemplates('', '');
+            
+            // Reset create inputs
+            const templateContext = document.getElementById('templateContext');
+            if (templateContext) templateContext.value = '';
+            const templateCategory = document.getElementById('templateCategory');
+            if (templateCategory) templateCategory.value = '';
+            
+            // Clear template list
+            document.getElementById('templateList').innerHTML = '<li class="list-group-item text-muted">Select a context and category to view templates</li>';
+            
+            // Cleanup any lingering styles
+            document.body.style.removeProperty('padding-right');
+        }
+
+        // Update close button handler
+        $(document).ready(function() {
+            // Handle close button click
+            $(document).on('click', '#templateModal .close', function() {
+                hideTemplateModal();
+            });
+            
+            // Handle cancel button click
+            $(document).on('click', '#templateModal .btn-secondary', function() {
+                hideTemplateModal();
+            });
+
+            // Remove any existing backdrops
+            $('.modal-backdrop').remove();
+            
+            // Prevent clicks inside modal from bubbling up
+            $(document).on('click', '#templateModal .modal-content', function(e) {
+                e.stopPropagation();
+            });
+            
+            // Close modal when clicking outside
+            $(document).on('click', '#templateModal', function(e) {
+                if ($(e.target).is('#templateModal')) {
+                    hideTemplateModal();
+                }
+            });
+            
+            // Handle escape key
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape' && $('#templateModal').hasClass('show')) {
+                    hideTemplateModal();
+                }
+            });
+        });
+
+        window.saveTemplate = function() {
+            console.log('saveTemplate called');
+            
+            // Hide any previous errors
+            const errorDiv = document.getElementById('templateError');
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
+                errorDiv.textContent = '';
+            }
+            
+            const nameField = document.getElementById('templateName');
+            if (!nameField) {
+                if (errorDiv) {
+                    errorDiv.textContent = 'Template form not found. Please open the create template modal first.';
+                    errorDiv.style.display = 'block';
+                }
+                return;
+            }
+            
+            const contextField = document.getElementById('templateContext');
+            const categoryField = document.getElementById('templateCategory');
+            const contentField = document.getElementById('templateContent');
+            
+            if (!contextField || !categoryField || !contentField) {
+                alert('Template form not loaded properly. Please refresh the page and try again.');
+                return;
+            }
+            
+            console.log('Fields found:', {
+                nameField: !!nameField,
+                contextField: !!contextField,
+                categoryField: !!categoryField,
+                contentField: !!contentField
+            });
+            
+            const templateData = {
+                name: nameField ? nameField.value : '',
+                context: contextField ? contextField.value : '',
+                category: categoryField ? categoryField.value : '',
+                content: contentField ? contentField.value : '',
+                csrf_token_form: {{ csrfTokenRaw()|json_encode }}
+            };
+
+            console.log('Template data to save:', templateData);
+
+            // Validate required fields
+            if (!templateData.name || !templateData.name.trim()) {
+                console.error('Name field is empty:', templateData.name);
+                if (errorDiv) {
+                    errorDiv.textContent = 'Please enter a template name';
+                    errorDiv.style.display = 'block';
+                }
+                return;
+            }
+            if (!templateData.context || !templateData.context.trim()) {
+                console.error('Context field is empty:', templateData.context);
+                if (errorDiv) {
+                    errorDiv.textContent = 'Please enter a context';
+                    errorDiv.style.display = 'block';
+                }
+                return;
+            }
+            if (!templateData.category || !templateData.category.trim()) {
+                console.error('Category field is empty:', templateData.category);
+                if (errorDiv) {
+                    errorDiv.textContent = 'Please enter a category';
+                    errorDiv.style.display = 'block';
+                }
+                return;
+            }
+            if (!templateData.content || !templateData.content.trim()) {
+                console.error('Content field is empty:', templateData.content);
+                if (errorDiv) {
+                    errorDiv.textContent = 'Please enter template content';
+                    errorDiv.style.display = 'block';
+                }
+                return;
+            }
+
+            // Show loading state
+            const saveButton = document.getElementById('saveTemplateBtn');
+            const originalText = saveButton.innerHTML;
+            saveButton.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+            saveButton.disabled = true;
+
+            fetch('../../forms/soap/save_template.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: Object.entries(templateData)
+                    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+                    .join('&')
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Reset button state
+                saveButton.innerHTML = originalText;
+                saveButton.disabled = false;
+                
+                if (data.success) {
+                    // Show success message
+                    alert('Template saved successfully!');
+                    
+                    // Clear form
+                    document.getElementById('templateName').value = '';
+                    document.getElementById('templateContext').value = '';
+                    document.getElementById('templateCategory').value = '';
+                    document.getElementById('templateContent').value = '';
+                    
+                    // Reload contexts and categories to include the new one
+                    templateFunctions.loadTemplateContexts().then(() => {
+                        // Switch to browse tab to show the new template
+                        $('#browse-tab').tab('show');
+                        
+                        // Reload browse templates
+                        const context = document.getElementById('browseContext').value;
+                        const category = document.getElementById('browseCategory').value;
+                        templateFunctions.loadBrowseTemplates(context, category);
+                    });
+                } else {
+                    alert('Error saving template: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error saving template:', error);
+                saveButton.innerHTML = originalText;
+                saveButton.disabled = false;
+                alert('Error saving template');
+            });
+        };
+    </script>
+    <style>
+        /* Drag and Drop Styles */
+        .main-container {
+            display: flex;
+            gap: 1rem;
+            height: calc(100vh - 120px);
+        }
+        
+        .clinical-sidebar {
+            width: 350px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            overflow-y: auto;
+            overflow-x: hidden;
+            position: sticky;
+            top: 0;
+            height: fit-content;
+            max-height: 100vh;
+        }
+        
+        .soap-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .clinical-section {
+            margin-bottom: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .section-header {
+            padding: 0.5rem 0.75rem;
+            background: #ffffff;
+            border-bottom: 1px solid #dee2e6;
+            border-radius: 0.375rem 0.375rem 0 0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s ease;
+            min-height: 38px;
+            width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        
+        .section-header:hover {
+            background: #f8f9fa;
+        }
+        
+        .section-header.active {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .section-title {
+            font-weight: 600;
+            margin: 0;
+            font-size: 0.85rem;
+            line-height: 1.2;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 0.5rem;
+        }
+        
+        .section-toggle {
+            font-size: 0.75rem;
+            transition: transform 0.2s ease;
+            font-weight: bold;
+            width: 16px;
+            height: 16px;
+            text-align: center;
+            line-height: 16px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .section-content {
+            padding: 0.5rem;
+            background: #ffffff;
+            border-radius: 0 0 0.375rem 0.375rem;
+            max-height: 200px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: none;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .section-content.active {
+            display: block;
+        }
+        
+        .clinical-section.collapsed .section-toggle {
+            transform: rotate(-90deg);
+        }
+        
+        .draggable-item {
+            background: #ffffff;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            cursor: grab;
+            transition: all 0.2s ease;
+            user-select: none;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        
+        .draggable-item.vital-set-item {
+            background: #f8f9ff;
+            border-left: 4px solid #007bff;
+            padding: 0.75rem;
+        }
+        
+        .draggable-item.vital-set-item .data-item-header {
+            color: #007bff;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .draggable-item.vital-set-item .data-item-content {
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            white-space: pre-line;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .draggable-item:hover {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            transform: translateX(2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .draggable-item:active {
+            cursor: grabbing;
+        }
+        
+        .draggable-item.dragging {
+            opacity: 0.6;
+            transform: rotate(1deg);
+        }
+        
+        .draggable-item.used {
+            text-decoration: line-through;
+            opacity: 0.5;
+            background: #f8f9fa;
+            border-color: #6c757d;
+        }
+        
+        .draggable-item.used:hover {
+            background: #e9ecef;
+            border-color: #6c757d;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .soap-textarea {
+            min-height: 120px;
+            position: relative;
+        }
+        
+        .drop-zone {
+            border: 2px dashed #ced4da;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            text-align: center;
+            color: #6c757d;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            margin-bottom: 0.5rem;
+        }
+        
+        .drop-zone.drag-over {
+            border-color: #007bff;
+            background: #e7f3ff;
+            color: #007bff;
+        }
+        
+        .data-item-header {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+            word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .data-item-content {
+            font-size: 0.8rem;
+            color: #6c757d;
+            line-height: 1.3;
+            word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .sidebar-title {
+            margin: 0 0 1rem 0;
+            font-size: 1.25rem;
+            color: #495057;
+            text-align: center;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .loading-message {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 1rem;
+        }
+        
+        .insert-indicator {
+            height: 2px;
+            background: #007bff;
+            margin: 2px 0;
+            display: none;
+            border-radius: 1px;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 1200px) {
+            .clinical-sidebar {
+                width: 300px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .clinical-sidebar {
+                width: 100%;
+                position: relative;
+                max-height: 400px;
+            }
+        }
+
+        /* Custom Modal Styles */
+        .custom-modal {
+            display: none;
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: auto;
+            height: auto;
+            z-index: 9999;
+            background: none;
+        }
+        
+        .custom-modal.show {
+            display: block;
+        }
+        
+        .custom-modal .modal-dialog {
+            width: 400px;
+            margin: 0;
+            position: relative;
+        }
+        
+        .custom-modal .modal-content {
+            position: relative;
+            background-color: #fff;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 0.3rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .custom-modal .modal-header {
+            padding: 1rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            border-top-left-radius: calc(0.3rem - 1px);
+            border-top-right-radius: calc(0.3rem - 1px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .custom-modal .modal-body {
+            padding: 1.5rem;
+            background: #fff;
+        }
+
+        .custom-modal .modal-footer {
+            padding: 1rem;
+            border-top: 1px solid #dee2e6;
+            background: #f8f9fa;
+            border-bottom-left-radius: calc(0.3rem - 1px);
+            border-bottom-right-radius: calc(0.3rem - 1px);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+        
+        /* Remove any modal backdrops */
+        .modal-backdrop {
+            display: none !important;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container-fluid mt-3 position-relative">
+        <div class="main-container">
+            <!-- Clinical Data Sidebar - Left Side -->
+            <div class="clinical-sidebar">
+                <h5 class="sidebar-title">{{ 'Clinical Data'|xlt }}</h5>
+                
+                <!-- Patient Details Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('patient-details', event)">
+                        <h6 class="section-title">{{ 'Demographics'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="patient-details" class="section-content">
+                        <div id="patient-details-loading" class="loading-message">{{ 'Loading patient details...'|xlt }}</div>
+                        <div id="patient-details-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Allergies Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('allergies', event)">
+                        <h6 class="section-title">{{ 'Allergies'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="allergies" class="section-content">
+                        <div id="allergies-loading" class="loading-message">{{ 'Loading allergies...'|xlt }}</div>
+                        <div id="allergies-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Medications Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('medications', event)">
+                        <h6 class="section-title">{{ 'Medications'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="medications" class="section-content">
+                        <div id="medications-loading" class="loading-message">{{ 'Loading medications...'|xlt }}</div>
+                        <div id="medications-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Eligibility Notes Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('eligibility', event)">
+                        <h6 class="section-title">{{ 'Eligibility Notes'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="eligibility" class="section-content">
+                        <div id="eligibility-loading" class="loading-message">{{ 'Loading eligibility notes...'|xlt }}</div>
+                        <div id="eligibility-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Nurses Notes Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('nurses', event)">
+                        <h6 class="section-title">{{ 'Nurses Notes'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="nurses" class="section-content">
+                        <div id="nurses-loading" class="loading-message">{{ 'Loading nurses notes...'|xlt }}</div>
+                        <div id="nurses-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Review of Systems Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('ros', event)">
+                        <h6 class="section-title">{{ 'Review of Systems'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="ros" class="section-content">
+                        <div id="ros-loading" class="loading-message">{{ 'Loading review of systems...'|xlt }}</div>
+                        <div id="ros-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Vital Signs Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('vital-signs', event)">
+                        <h6 class="section-title">{{ 'Vital Signs'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="vital-signs" class="section-content">
+                        <div id="vitals-loading" class="loading-message">{{ 'Loading vital signs...'|xlt }}</div>
+                        <div id="vitals-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Results Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('results', event)">
+                        <h6 class="section-title">{{ 'Results'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="results" class="section-content">
+                        <div id="results-loading" class="loading-message">{{ 'Loading results...'|xlt }}</div>
+                        <div id="results-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Physical Exam Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('physical', event)">
+                        <h6 class="section-title">{{ 'Physical Exam'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="physical" class="section-content">
+                        <div id="physical-loading" class="loading-message">{{ 'Loading physical exam...'|xlt }}</div>
+                        <div id="physical-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Medical Problems Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('problems', event)">
+                        <h6 class="section-title">{{ 'Diagnoses'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="problems" class="section-content">
+                        <div id="problems-loading" class="loading-message">{{ 'Loading medical problems...'|xlt }}</div>
+                        <div id="problems-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Orders & Referrals Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('orders-referrals', event)">
+                        <h6 class="section-title">{{ 'Orders'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="orders-referrals" class="section-content">
+                        <div id="orders-referrals-loading" class="loading-message">{{ 'Loading orders and referrals...'|xlt }}</div>
+                        <div id="orders-referrals-container"></div>
+                    </div>
+                </div>
+                
+                <!-- Prescriptions Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('prescriptions', event)">
+                        <h6 class="section-title">{{ 'Prescriptions'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="prescriptions" class="section-content">
+                        <div id="prescriptions-loading" class="loading-message">{{ 'Loading prescriptions...'|xlt }}</div>
+                        <div id="prescriptions-container"></div>
+                    </div>
+                </div>
+
+                <!-- Templates Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="window.handleTemplatesSectionClick()">
+                        <h6 class="section-title">{{ 'Templates'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="templates" class="section-content">
+                        <div class="mb-2">
+                            <button type="button" class="btn btn-primary btn-sm" onclick="showAddTemplateModal()">
+                                <i class="fa fa-plus"></i> {{ 'Add New Template'|xlt }}
+                            </button>
+                        </div>
+                        <div class="template-filters mb-3">
+                            <div class="form-group mb-2">
+                                <label for="filterContext">{{ 'Context'|xlt }}</label>
+                                <select class="form-control" id="filterContext" onchange="window.onContextChange(this.value)">
+                                    <option value="">{{ 'Select Context'|xlt }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group mb-2">
+                                <label for="filterCategory">{{ 'Category'|xlt }}</label>
+                                <select class="form-control" id="filterCategory" onchange="window.onCategoryChange(this.value)">
+                                    <option value="">{{ 'Select Category'|xlt }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="templates-container"></div>
+                    </div>
+                </div>
+
+                <!-- Template Modal -->
+                <div class="modal custom-modal" id="templateModal" tabindex="-1" role="dialog" aria-labelledby="templateModalLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document" style="max-width: 800px;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="templateModalLabel">{{ 'Template Manager'|xlt }}</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <!-- Tab Navigation -->
+                                <ul class="nav nav-tabs" id="templateTabs" role="tablist">
+                                    <li class="nav-item">
+                                        <a class="nav-link active" id="browse-tab" data-toggle="tab" href="#browseTemplates" role="tab">{{ 'Browse Templates'|xlt }}</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="create-tab" data-toggle="tab" href="#createTemplate" role="tab">{{ 'Create New'|xlt }}</a>
+                                    </li>
+                                </ul>
+
+                                <!-- Tab Content -->
+                                <div class="tab-content mt-3" id="templateTabContent">
+                                    <!-- Browse Templates Tab -->
+                                    <div class="tab-pane fade show active" id="browseTemplates" role="tabpanel">
+                                        <div class="template-filters mb-3">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <label for="browseContext">{{ 'Context'|xlt }}</label>
+                                                    <select class="form-control" id="browseContext" onchange="onBrowseContextChange(this.value)">
+                                                        <option value="">{{ 'All Contexts'|xlt }}</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="browseCategory">{{ 'Category'|xlt }}</label>
+                                                    <select class="form-control" id="browseCategory" onchange="onBrowseCategoryChange(this.value)">
+                                                        <option value="">{{ 'All Categories'|xlt }}</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div id="browseTemplatesContainer">
+                                            <ul id="templateList" class="list-group">
+                                                <li class="list-group-item text-muted">{{ 'Select a context and category to view templates'|xlt }}</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <!-- Create Template Tab -->
+                                    <div class="tab-pane fade" id="createTemplate" role="tabpanel">
+                                        <div id="templateError" class="alert alert-danger" style="display: none;"></div>
+                                        <form id="templateForm" onsubmit="return false">
+                                            <div class="form-group mb-3">
+                                                <label for="templateName">{{ 'Template Name'|xlt }}</label>
+                                                <input type="text" class="form-control" id="templateName" required>
+                                            </div>
+                                            <div class="form-group mb-3">
+                                                <label for="templateContext">{{ 'Context'|xlt }}</label>
+                                                <input type="text" class="form-control" id="templateContext" list="contextList" required>
+                                                <datalist id="contextList"></datalist>
+                                            </div>
+                                            <div class="form-group mb-3">
+                                                <label for="templateCategory">{{ 'Category'|xlt }}</label>
+                                                <input type="text" class="form-control" id="templateCategory" list="categoryList" required>
+                                                <datalist id="categoryList"></datalist>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="templateContent">{{ 'Template Content'|xlt }}</label>
+                                                <textarea class="form-control" id="templateContent" rows="6" required></textarea>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ 'Close'|xlt }}</button>
+                                <button type="button" class="btn btn-primary d-none" id="saveTemplateBtn" onclick="window.saveTemplate()">{{ 'Save Template'|xlt }}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Section -->
+                <div class="clinical-section">
+                    <div class="section-header" onclick="toggleSection('history', event)">
+                        <h6 class="section-title">{{ 'History'|xlt }}</h6>
+                        <span class="section-toggle">▼</span>
+                    </div>
+                    <div id="history" class="section-content">
+                        <div id="history-loading" class="loading-message">{{ 'Loading patient history...'|xlt }}</div>
+                        <div id="history-container"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SOAP Form Content -->
+            <div class="soap-content">
+                <h2>{{'SOAP'|xlt}}</h2>
+                <form name="soap" method="post" action="{{ FORM_ACTION | attr }}/interface/forms/soap/save.php" onsubmit="return top.restoreSession()">
+                    <input type="hidden" name="csrf_token_form" value="{{ csrfTokenRaw()|attr }}" />
+                    <fieldset>
+                        <legend>{{ 'Subjective' | xlt }}</legend>
+                        <div class="container">
+                            <div class="drop-zone" data-target="subjective">
+                                {{ 'Drop clinical data here or click to add content'|xlt }}
+                            </div>
+                            <div class="form-group" >
+                                <textarea name="subjective" id="subjective" class="form-control soap-textarea" cols="60" rows="6" onkeyup="top.isSoapEdit = true;">{{ data.get_subjective()|text }}</textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+                    <fieldset>
+                        <legend>{{ 'Objective' | xlt }}</legend>
+                        <div class="container">
+                            <div class="drop-zone" data-target="objective">
+                                {{ 'Drop clinical data here or click to add content'|xlt }}
+                            </div>
+                            <div class="form-group">
+                                <textarea name="objective" id="objective" class="form-control soap-textarea" cols="60" rows="6" onkeyup="top.isSoapEdit = true;">{{ data.get_objective()|text }}</textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+                    <fieldset>
+                        <legend>{{ 'Assessment'|xlt }}</legend>
+                        <div class="container">
+                            <div class="drop-zone" data-target="assessment">
+                                {{ 'Drop clinical data here or click to add content'|xlt }}
+                            </div>
+                            <div class="form-group">
+                                <textarea name="assessment" id="assessment" class="form-control soap-textarea" cols="60" rows="6" onkeyup="top.isSoapEdit = true;">{{ data.get_assessment()|text }}</textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+                    <fieldset>
+                        <legend>{{ 'Plan'|xlt }}</legend>
+                        <div class="container">
+                            <div class="drop-zone" data-target="plan">
+                                {{ 'Drop clinical data here or click to add content'|xlt }}
+                            </div>
+                            <div class="form-group">
+                                <textarea name="plan" id="plan" class="form-control soap-textarea" cols="60" rows="6" onkeyup="top.isSoapEdit = true;">{{ data.get_plan()|text }}</textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <div class="form-group">
+                        <div class="btn-group" role="group">
+                            <button type="submit" class="btn btn-primary btn-save" name="Submit">{{ 'Save'|xlt }}</button>
+                            <button type="button" class="btn btn-secondary btn-cancel" id="btnClose">{{ 'Cancel'|xlt }}</button>
+                        </div>
+                        <input type="hidden" name="id" value="{{ data.get_id()|attr }}" />
+                        <input type="hidden" name="activity" value="{{ data.get_activity()|attr }}" />
+                        <input type="hidden" name="pid" value="{{ data.get_pid()|attr }}" />
+                        <input type="hidden" name="process" value="true" />
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+
+        function populateEligibility(notes) {
+            const container = document.getElementById('eligibility-container');
+            const loading = document.getElementById('eligibility-loading');
+            if (!container) {
+                console.warn('Eligibility container not found');
+                return;
+            }
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            container.innerHTML = '';
+            console.log('Eligibility notes received:', notes);
+            if (!notes || notes.length === 0) {
+                container.innerHTML = '<div class="text-muted">No eligibility notes available</div>';
+                return;
+            }
+            notes.forEach(note => {
+                // Format content: each field on its own line
+                let formattedContent = '';
+                if (note.content && typeof note.content === 'string') {
+                    formattedContent = note.content; // keep as plain text, do not convert to <br>
+                } else {
+                    formattedContent = note.content || '';
+                }
+                const item = createDraggableItem('eligibility', note.header || 'Eligibility Note', formattedContent);
+                container.appendChild(item);
+            });
+            initializeDragAndDrop();
+        }
+
+        function populateNurses(notes) {
+            const container = document.getElementById('nurses-container');
+            const loading = document.getElementById('nurses-loading');
+            if (!container) {
+                console.warn('Nurses container not found');
+                return;
+            }
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            container.innerHTML = '';
+            console.log('Nurses notes received:', notes);
+            if (!notes || notes.length === 0) {
+                container.innerHTML = '<div class="text-muted">No nurses notes available</div>';
+                return;
+            }
+            notes.forEach(note => {
+                // Format content: each field on its own line
+                let formattedContent = '';
+                if (note.content && typeof note.content === 'string') {
+                    formattedContent = note.content; // keep as plain text, do not convert to <br>
+                } else {
+                    formattedContent = note.content || '';
+                }
+                const item = createDraggableItem('nurses', note.header || 'Nurses Note', formattedContent);
+                container.appendChild(item);
+            });
+            initializeDragAndDrop();
+        }
+        // Make toggleSection available globally first
+        function toggleSection(sectionId, eventObj = null) {
+            const section = document.getElementById(sectionId);
+            
+            // Find the header element - either from event or by searching
+            let header;
+            if (eventObj && eventObj.target) {
+                header = eventObj.target.closest('.section-header');
+            } else {
+                // Find the header by looking for the onclick attribute that matches this sectionId
+                header = document.querySelector(`[onclick*="toggleSection('${sectionId}')"]`);
+                // Alternative: find by searching for the section and getting its previous sibling
+                if (!header && section) {
+                    const parentSection = section.closest('.clinical-section');
+                    if (parentSection) {
+                        header = parentSection.querySelector('.section-header');
+                    }
+                }
+            }
+            
+            if (!header || !section) {
+                console.warn(`Could not find header or section for ${sectionId}`);
+                return;
+            }
+            
+            const toggle = header.querySelector('.section-toggle');
+            const parentSection = header.closest('.clinical-section');
+            
+            if (section.classList.contains('active')) {
+                // Close section
+                section.classList.remove('active');
+                header.classList.remove('active');
+                if (parentSection) {
+                    parentSection.classList.add('collapsed');
+                }
+            } else {
+                // Open section
+                section.classList.add('active');
+                header.classList.add('active');
+                if (parentSection) {
+                    parentSection.classList.remove('collapsed');
+                }
+                
+                // Load data for the specific section if not already loaded
+                loadSectionData(sectionId);
+            }
+        }
+        
+        // Make functions globally available
+        window.toggleSection = toggleSection;
+
+        // Function to load and initialize the templates section
+        function loadTemplatesSection() {
+            // Get the templates section element
+            const templatesSection = document.getElementById('templates');
+            const header = document.querySelector('.section-header[onclick="loadTemplatesSection()"]');
+            const parentSection = header.closest('.clinical-section');
+            
+            // Toggle section visibility
+            if (templatesSection.classList.contains('active')) {
+                templatesSection.classList.remove('active');
+                header.classList.remove('active');
+                parentSection.classList.add('collapsed');
+            } else {
+                templatesSection.classList.add('active');
+                header.classList.remove('active');
+                parentSection.classList.remove('collapsed');
+                
+                // Initialize templates only when opening
+                loadTemplateContexts();
+            }
+        }
+
+        // Handle context change in template filters
+        function onContextChange(value) {
+            console.log('Context changed to:', value);
+            // Clear category dropdown and templates container
+            document.getElementById('filterCategory').innerHTML = '<option value="">{{ "Select Category"|xlt }}</option>';
+            document.getElementById('templates-container').innerHTML = '';
+            
+            if (value) {
+                // Load categories for selected context
+                loadTemplateCategories();
+            }
+        }
+
+        // Handle category change in template filters
+        function onCategoryChange(value) {
+            console.log('Category changed to:', value);
+            if (value) {
+                // Load templates for selected context and category
+                loadTemplatesList();
+            } else {
+                // Clear templates container if no category selected
+                document.getElementById('templates-container').innerHTML = '';
+            }
+        }
+        
+        // Global variables
+        let draggedElement = null;
+        let isDraggedFromPanel = false;
+        let usedItems = new Set(); // Track items that have been used in SOAP note
+
+        // Close functionality
+        const close = function() {
+            if (top.isSoapEdit === true) {
+                dlgopen('', '', 450, 125, '', '<div class="text-danger">{{'Warning'|xlt}}</div>',
+                    {
+                    type: 'Alert',
+                    html: '<p>{{'Do you want to close the tabs?'|xla}}</p>',
+                    buttons: [
+                        { text: '{{'Cancel'|xla}}', close: true, style: 'default btn-sm' },
+                        { text: '{{'Close'|xla}}', close: true, style: 'danger btn-sm', click: closeSoap },
+                    ],
+                    allowDrag: false,
+                    allowResize: false,
+                });
+            } else {
+                top.restoreSession();
+                location.href = 'javascript:parent.closeTab(window.name, false)';
+            }
+        }
+
+        const closeSoap = function() {
+            top.isSoapEdit = false;
+            top.restoreSession();
+            location.href = 'javascript:parent.closeTab(window.name, false)';
+        }
+
+        // Track which sections have been loaded
+        const loadedSections = new Set();
+        
+        // Initialize templates section when opened
+        function initializeTemplatesSection() {
+            console.log('Initializing templates section');
+            // Load initial contexts
+            loadTemplateContexts();
+            
+            // Add section loaded event listener
+            const templatesSection = document.getElementById('templates');
+            if (templatesSection && !templatesSection.getAttribute('data-initialized')) {
+                templatesSection.setAttribute('data-initialized', 'true');
+                console.log('Templates section initialized');
+            }
+        }
+        
+        // Load data for specific section
+        function loadSectionData(sectionId) {
+            // Don't reload if already loaded
+            if (loadedSections.has(sectionId)) {
+                return;
+            }
+            
+            // Try multiple sources for patient ID
+            let pid = {{ data.get_pid()|default('null')|json_encode }};
+            let encounter = {{ encounter|default('null')|json_encode }};
+            const csrfToken = {{ csrfTokenRaw()|json_encode }};
+      
+            
+            // If pid is still not available from form data, try other sources
+            if (!pid || pid === null || pid === '') {
+                
+                
+                // Try template variables
+                pid = {{ pid|default('null')|json_encode }};
+                
+                
+                // Try to get from parent window session
+                if ((!pid || pid === null) && typeof parent !== 'undefined' && parent.session && parent.session.pid) {
+                    pid = parent.session.pid;
+                   
+                }
+                // Try to get from top window session
+                else if ((!pid || pid === null) && typeof top !== 'undefined' && top.session && top.session.pid) {
+                    pid = top.session.pid;
+                   
+                }
+                // Try to get from URL parameters
+                else if (!pid || pid === null) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    pid = urlParams.get('pid');
+                    
+                }
+                // Try to get from hidden input field
+                else if (!pid || pid === null) {
+                    const pidInput = document.querySelector('input[name="pid"]');
+                    if (pidInput && pidInput.value) {
+                        pid = pidInput.value;
+                      
+                    } else {
+                        console.log('❌ No PID found in hidden input field');
+                    }
+                }
+            }
+                        
+            // If encounter is not available, try alternative sources
+            if (!encounter || encounter === null || encounter === '') {
+                console.log('⚠️ Encounter is empty, trying alternative sources...');
+                if (typeof parent !== 'undefined' && parent.session && parent.session.encounter) {
+                    encounter = parent.session.encounter;
+                    console.log('✅ Encounter found from parent.session:', encounter);
+                }
+                else if (typeof top !== 'undefined' && top.session && top.session.encounter) {
+                    encounter = top.session.encounter;
+                    console.log('✅ Encounter found from top.session:', encounter);
+                }
+                else {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    encounter = urlParams.get('encounter');
+                    console.log('Encounter from URL parameters:', encounter);
+                }
+            }
+            
+            if (!pid || pid === null || pid === '') {
+                console.error('❌ No patient ID available from any source');
+                console.log('🔍 Debugging info:', {
+                    'data.get_pid()': {{ data.get_pid()|default('null')|json_encode }},
+                    'pid template var': {{ pid|default('null')|json_encode }},
+                    'URL params': new URLSearchParams(window.location.search).get('pid'),
+                    'Hidden input': document.querySelector('input[name="pid"]')?.value,
+                    'Parent session': typeof parent !== 'undefined' && parent.session ? parent.session.pid : 'not available',
+                    'Top session': typeof top !== 'undefined' && top.session ? top.session.pid : 'not available'
+                });
+                // Hide loading indicators and show error
+                document.querySelectorAll('[id$="-loading"]').forEach(loading => {
+                    loading.innerHTML = '<div class="text-danger">{{ "Patient ID not available - cannot load clinical data"|xlt }}</div>';
+                });
+                return;
+            }
+            
+            console.log('🚀 Making API call with PID:', pid, 'and encounter:', encounter);
+            
+            fetch('../../forms/soap/get_clinical_data.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `pid=${encodeURIComponent(pid)}&encounter=${encodeURIComponent(encounter)}&csrf_token_form=${encodeURIComponent(csrfToken)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error loading clinical data:', data.error);
+                    return;
+                }
+                
+                // Load data for the specific section
+                switch(sectionId) {
+                    case 'physical':
+                        if (data.physical_exam) {
+                            populatePhysicalExam(data.physical_exam);
+                        }
+                        loadedSections.add(sectionId);
+                        break;
+                    case 'ros':
+                        if (data.ros) {
+                            populateROS(data.ros);
+                        }
+                        loadedSections.add(sectionId);
+                        break;
+                    case 'eligibility':
+                        if (data.eligibility_notes) {
+                            if (typeof populateEligibility === 'function') {
+                                populateEligibility(data.eligibility_notes);
+                            } else {
+                                document.getElementById('eligibility-loading').style.display = 'none';
+                                document.getElementById('eligibility-container').innerHTML = '<div class="text-muted">No eligibility notes available</div>';
+                            }
+                        }
+                        loadedSections.add(sectionId);
+                        break;
+                    case 'nurses':
+                        if (data.nurses_notes) {
+                            if (typeof populateNurses === 'function') {
+                                populateNurses(data.nurses_notes);
+                            } else {
+                                document.getElementById('nurses-loading').style.display = 'none';
+                                document.getElementById('nurses-container').innerHTML = '<div class="text-muted">No nurses notes available</div>';
+                            }
+                        }
+                        loadedSections.add(sectionId);
+                        break;
+                    case 'patient-details':
+                        if (data.patient_details) {
+                            populatePatientDetails(data.patient_details);
+                            loadedSections.add(sectionId);
+                        }
+                        break;
+                    case 'vital-signs':
+                        if (data.vitals) {
+                            populateVitals(data.vitals);
+                            loadedSections.add(sectionId);
+                        }
+                        break;
+                    case 'orders-referrals':
+                        if (data.forms) {
+                            populateOrdersReferralsTab(data.forms);
+                            loadedSections.add(sectionId);
+                        }
+                        break;
+                    case 'results':
+                        if (data.labs) {
+                            populateResultsTab(data.labs);
+                            loadedSections.add(sectionId);
+                        }
+                        break;
+                    case 'allergies':
+                        if (data.allergies) {
+                            populateAllergies(data.allergies);
+                            loadedSections.add(sectionId);
+                        }
+                        break;
+                    case 'physical-exam':
+                        if (data.physical_exam) {
+                            populatePhysicalExam(data.physical_exam);
+                            loadedSections.add(sectionId);
+                        }
+                        break;
+                    case 'medications':
+                        if (data.medications) {
+                            populateMedications(data.medications);
+                            loadedSections.add(sectionId);
+                        }
+                        break;
+                    case 'prescriptions':
+                        if (data.prescriptions) {
+                            populatePrescriptions(data.prescriptions);
+                            loadedSections.add(sectionId);
+                        }
+                        break;
+                    case 'problems':
+                        if (data.medical_problems) {
+                            populateProblems(data.medical_problems);
+                            loadedSections.add(sectionId);
+                        }
+                        break;
+                    case 'ros':
+                        if (data.ros) {
+                            populateROS(data.ros);
+                            loadedSections.add(sectionId);
+                        }
+                        break;
+                    case 'history':
+                        if (data.history) {
+                            populateHistory(data.history);
+                            loadedSections.add(sectionId);
+                        }
+                        break;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching clinical data:', error);
+                
+                // Hide loading indicators on error
+                const loadingDiv = document.querySelector(`#${sectionId} [id$="-loading"]`);
+                if (loadingDiv) {
+                    loadingDiv.style.display = 'none';
+                }
+            });
+        }
+
+        // Drag and Drop functionality
+        function initializeDragAndDrop() {
+            // Make all draggable items draggable
+            document.querySelectorAll('.draggable-item').forEach(item => {
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragend', handleDragEnd);
+            });
+
+            // Set up drop zones
+            document.querySelectorAll('.drop-zone').forEach(zone => {
+                zone.addEventListener('dragover', handleDragOver);
+                zone.addEventListener('dragenter', handleDragEnter);
+                zone.addEventListener('dragleave', handleDragLeave);
+                zone.addEventListener('drop', handleDrop);
+                zone.addEventListener('click', handleDropZoneClick);
+            });
+
+            // Set up textarea drop functionality
+            document.querySelectorAll('.soap-textarea').forEach(textarea => {
+                textarea.addEventListener('dragover', handleTextareaDragOver);
+                textarea.addEventListener('drop', handleTextareaDrop);
+            });
+        }
+
+        function handleDragStart(e) {
+            draggedElement = this;
+            isDraggedFromPanel = this.closest('.clinical-sidebar') !== null;
+            this.classList.add('dragging');
+            
+            // Get the type of item being dragged
+            const itemType = this.getAttribute('data-type');
+            
+            let fullText = '';
+            
+            if (itemType === 'template') {
+                // For templates, use only the content (exclude template name header)
+                const content = this.querySelector('.data-item-content');
+                fullText = content ? content.textContent : this.textContent;
+            } else if (itemType === 'vital-set') {
+                // For vital sets, use the full formatted content
+                const content = this.querySelector('.data-item-content').textContent;
+                fullText = content;
+            } else if (itemType === 'order-referral') {
+                // For orders and referrals, use the header and format content on new lines
+                const header = this.querySelector('.data-item-header').textContent;
+                const content = this.querySelector('.data-item-content').textContent;
+                fullText = header + '\n' + content;
+            } else if (itemType === 'allergy') {
+                // For allergies, use the full text content as is
+                fullText = this.textContent;
+            } else if (itemType === 'medication' || itemType === 'problem') {
+                // For medications, use only the header (name) to avoid duplication
+                if (itemType === 'medication') {
+                    fullText = this.querySelector('.data-item-header').textContent;
+                } else if (itemType === 'problem') {
+                    // For problems (medical problems), use both header (date) and content (problem details)
+                    const header = this.querySelector('.data-item-header').textContent;
+                    const content = this.querySelector('.data-item-content').textContent;
+                    fullText = header + ': ' + content;
+                }
+            } else if (itemType === 'patient_detail') {
+                // For patient details, drag only the value of the item being dragged (span's own text)
+                fullText = this.textContent.trim();
+            } else if (itemType === 'physical-group' || itemType === 'ros-group') {
+                // For Physical Exam and Review of Systems, use header and content separated by a newline, no extra colon
+                const header = this.querySelector('.data-item-header').textContent;
+                const content = this.querySelector('.data-item-content').textContent;
+                fullText = header + '\n' + content;
+            } else {
+                // For other items, use the standard format
+                const header = this.querySelector('.data-item-header').textContent;
+                const content = this.querySelector('.data-item-content').textContent;
+                fullText = header + ': ' + content;
+            }
+            
+            e.dataTransfer.setData('text/plain', fullText);
+            e.dataTransfer.effectAllowed = 'copy';
+        }
+
+        
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            draggedElement = null;
+            isDraggedFromPanel = false;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            if (!this.contains(e.relatedTarget)) {
+                this.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            
+            const droppedText = e.dataTransfer.getData('text/plain');
+            const targetTextarea = this.nextElementSibling.querySelector('textarea');
+            if (targetTextarea && droppedText) {
+                // Mark the dragged item as used
+                if (draggedElement && draggedElement.getAttribute('data-item-id')) {
+                    const itemId = draggedElement.getAttribute('data-item-id');
+                    usedItems.add(itemId);
+                    draggedElement.classList.add('used');
+                }
+                
+                // If this is a patient_detail, move cursor to end before inserting
+                if (window.draggedElement && window.draggedElement.getAttribute && window.draggedElement.getAttribute('data-type') === 'patient_detail') {
+                    targetTextarea.focus();
+                    targetTextarea.setSelectionRange(targetTextarea.value.length, targetTextarea.value.length);
+                }
+                appendToTextarea(targetTextarea, droppedText);
+                top.isSoapEdit = true;
+            }
+        }
+
+        function handleDropZoneClick(e) {
+            const targetTextarea = this.nextElementSibling.querySelector('textarea');
+            if (targetTextarea) {
+                targetTextarea.focus();
+            }
+        }
+
+        function handleTextareaDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            
+            // Show insertion point
+            const rect = this.getBoundingClientRect();
+            const y = e.clientY - rect.top;
+            const lineHeight = parseInt(window.getComputedStyle(this).lineHeight);
+            const lines = this.value.split('\n');
+            const insertLine = Math.min(Math.floor(y / lineHeight), lines.length);
+            
+            // Visual feedback could be added here
+        }
+
+        function handleTextareaDrop(e) {
+            e.preventDefault();
+            const droppedText = e.dataTransfer.getData('text/plain');
+            
+            if (droppedText) {
+                // Mark the dragged item as used
+                if (draggedElement && draggedElement.getAttribute('data-item-id')) {
+                    const itemId = draggedElement.getAttribute('data-item-id');
+                    usedItems.add(itemId);
+                    draggedElement.classList.add('used');
+                }
+                
+                // Check for duplicates before inserting
+                const currentValue = this.value;
+                const normalizedText = droppedText.trim().toLowerCase();
+                const normalizedCurrentValue = currentValue.toLowerCase();
+                const existingLines = currentValue.split('\n').map(line => line.trim().toLowerCase());
+                if (existingLines.includes(normalizedText)) {
+                    showDuplicateMessage(this, droppedText);
+                    return;
+                }
+                if (normalizedCurrentValue.includes(normalizedText) && normalizedText.length > 10) {
+                    showDuplicateMessage(this, droppedText, true);
+                    return;
+                }
+                // If this is a patient_detail, always append to the last line with a space
+                if (window.draggedElement && window.draggedElement.getAttribute && window.draggedElement.getAttribute('data-type') === 'patient_detail') {
+                    // Insert at cursor position, never add a newline, only a space if needed
+                    const cursorPos = this.selectionStart;
+                    let textBefore = this.value.substring(0, cursorPos).replace(/[\n\r]+/g, ' ');
+                    let textAfter = this.value.substring(cursorPos).replace(/[\n\r]+/g, ' ');
+                    if (textBefore.length > 0 && !textBefore.endsWith(' ')) {
+                        textBefore += ' ';
+                    }
+                    let insertText = droppedText.trim();
+                    // Avoid double spaces
+                    if (textAfter.length > 0 && !insertText.endsWith(' ') && !textAfter.startsWith(' ')) {
+                        insertText += ' ';
+                    }
+                    this.value = textBefore + insertText + textAfter;
+                    // Move cursor to after inserted text
+                    const newCursorPos = (textBefore + insertText).length;
+                    this.setSelectionRange(newCursorPos, newCursorPos);
+                    this.focus();
+                    top.isSoapEdit = true;
+                    return;
+                }
+                // Default: Insert at cursor with newlines for other types
+                const cursorPos = this.selectionStart;
+                const textBefore = this.value.substring(0, cursorPos);
+                const textAfter = this.value.substring(cursorPos);
+                const newText = textBefore + (textBefore && !textBefore.endsWith('\n') ? '\n' : '') + 
+                               droppedText + 
+                               (textAfter && !textAfter.startsWith('\n') ? '\n' : '') + textAfter;
+                this.value = newText;
+                top.isSoapEdit = true;
+                const newCursorPos = cursorPos + droppedText.length + 
+                                   (textBefore && !textBefore.endsWith('\n') ? 1 : 0) +
+                                   (textAfter && !textAfter.startsWith('\n') ? 1 : 0);
+                this.setSelectionRange(newCursorPos, newCursorPos);
+                this.focus();
+            }
+        }
+
+        function appendToTextarea(textarea, text) {
+            const currentValue = textarea.value;
+            
+            // Check if this is a template being dragged (not patient_detail)
+            let isTemplate = false;
+            if (window.draggedElement && window.draggedElement.getAttribute) {
+                const dataType = window.draggedElement.getAttribute('data-type');
+                if (dataType === 'template') {
+                    isTemplate = true;
+                    // Replace template variables (XX → age, Pt → patient name)
+                    text = replaceTemplateVariables(text);
+                }
+            }
+            
+            // Check for duplicates - normalize both texts for comparison
+            const normalizedText = text.trim().toLowerCase();
+            const normalizedCurrentValue = currentValue.toLowerCase();
+            const existingLines = currentValue.split('\n').map(line => line.trim().toLowerCase());
+            if (existingLines.includes(normalizedText)) {
+                showDuplicateMessage(textarea, text);
+                return;
+            }
+            if (normalizedCurrentValue.includes(normalizedText) && normalizedText.length > 10) {
+                showDuplicateMessage(textarea, text, true);
+                return;
+            }
+            // Determine if this is a patient_detail drag
+            let isPatientDetail = false;
+            if (window.draggedElement && window.draggedElement.getAttribute && window.draggedElement.getAttribute('data-type') === 'patient_detail') {
+                isPatientDetail = true;
+            }
+            const cursorPos = textarea.selectionStart;
+            const textBefore = textarea.value.substring(0, cursorPos);
+            const textAfter = textarea.value.substring(cursorPos);
+            let insertText;
+            if (isPatientDetail) {
+                // Inline insert for patient_detail, always append with a space if needed
+                let before = textBefore;
+                // Remove trailing newline from before if present
+                if (before.endsWith('\n')) {
+                    before = before.replace(/\n+$/, '');
+                }
+                // Add a space if not at start or after a space
+                if (before.length > 0 && !before.endsWith(' ')) {
+                    before += ' ';
+                }
+                insertText = text;
+                textarea.value = before + insertText + textAfter;
+                const newCursorPos = (before + insertText).length;
+                textarea.setSelectionRange(newCursorPos, newCursorPos);
+            } else {
+                // Always insert with newlines for other types
+                insertText = (textBefore && !textBefore.endsWith('\n') ? '\n' : '') + text + (textAfter && !textAfter.startsWith('\n') ? '\n' : '');
+                textarea.value = textBefore + insertText + textAfter;
+                const newCursorPos = textBefore.length + insertText.length;
+                textarea.setSelectionRange(newCursorPos, newCursorPos);
+            }
+            textarea.focus();
+            textarea.scrollTop = textarea.scrollHeight;
+        }
+        
+        // Function to reset used items (can be called to allow reusing items)
+        function resetUsedItems() {
+            usedItems.clear();
+            document.querySelectorAll('.draggable-item.used').forEach(item => {
+                item.classList.remove('used');
+            });
+        }
+        
+        // Make resetUsedItems available globally if needed
+        window.resetUsedItems = resetUsedItems;
+
+        // Keyboard shortcuts
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', function(e) {
+                // Ctrl/Cmd + Shift + S for Subjective
+                if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
+                    e.preventDefault();
+                    document.getElementById('subjective').focus();
+                }
+                // Ctrl/Cmd + Shift + O for Objective  
+                else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'O') {
+                    e.preventDefault();
+                    document.getElementById('objective').focus();
+                }
+                // Ctrl/Cmd + Shift + A for Assessment
+                else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'A') {
+                    e.preventDefault();
+                    document.getElementById('assessment').focus();
+                }
+                // Ctrl/Cmd + Shift + P for Plan
+                else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
+                    e.preventDefault();
+                    document.getElementById('plan').focus();
+                }
+            });
+        }
+
+        // Initialize everything when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // No clinical data loads automatically - only when user clicks tabs
+            setupKeyboardShortcuts();
+            
+            // Add event listeners for browse dropdowns
+            const browseContextSelect = document.getElementById('browseContext');
+            const browseCategorySelect = document.getElementById('browseCategory');
+            
+            if (browseContextSelect) {
+                browseContextSelect.addEventListener('change', function() {
+                    const context = this.value;
+                    templateFunctions.loadBrowseCategories(context).then(() => {
+                        // Clear category selection and reload templates
+                        browseCategorySelect.value = '';
+                        browseCategorySelect.dispatchEvent(new Event('change'));
+                    });
+                });
+            }
+            
+            if (browseCategorySelect) {
+                browseCategorySelect.addEventListener('change', function() {
+                    const context = browseContextSelect.value;
+                    const category = this.value;
+                    templateFunctions.loadBrowseTemplates(context, category);
+                });
+            }
+            
+            // Add event listeners for tab changes
+            $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+                const targetTab = $(e.target).attr('href');
+                if (targetTab === '#createTemplate') {
+                    $('#saveTemplateBtn').removeClass('d-none');
+                } else {
+                    $('#saveTemplateBtn').addClass('d-none');
+                }
+            });
+        });
+
+        // Individual populate functions for each tab
+       function populatePatientDetails(patientDetails) {
+    const container = document.getElementById('patient-details-container');
+    const loading = document.getElementById('patient-details-loading');
+    if (!container) {
+        console.warn('Patient details container not found');
+        return;
+    }
+    if (loading) {
+        loading.style.display = 'none';
+    }
+    container.innerHTML = '';
+    if (!patientDetails || patientDetails.length === 0) {
+        container.innerHTML = '<div class="text-muted">{{ "No patient details available"|xlt }}</div>';
+        return;
+    }
+
+    // Extract fields
+    let fname = '', lname = '', age = '', gender = '', dob = '';
+    patientDetails.forEach((detail) => {
+        if (detail.field === 'fname') fname = detail.content;
+        if (detail.field === 'lname') lname = detail.content;
+        if (detail.field === 'age') age = detail.content;
+        if (detail.field === 'gender') gender = detail.content.toLowerCase();
+        if (detail.field === 'dob') dob = detail.content;
+    });
+
+    // Store in global patientData for template variable replacement
+    window.patientData = {
+        fname: fname,
+        lname: lname,
+        age: age,
+        gender: gender,
+        dob: dob
+    };
+    console.log('Patient data stored:', window.patientData);
+
+    // Compose display string
+    let genderText = gender ? (gender === 'male' ? 'male' : gender === 'female' ? 'female' : gender) : '';
+    const fullLine = `The patient ${fname}${lname ? ' ' + lname : ''}, ${age}${genderText ? ' ' + genderText : ''} (DOB: ${dob})`;
+
+    // Create a single draggable box for the whole line
+    const box = document.createElement('div');
+    box.className = 'draggable-item patient-detail-fullbox';
+    box.draggable = true;
+    box.setAttribute('data-type', 'patient_detail');
+    box.setAttribute('data-patient-detail', 'full');
+    
+    // Generate unique ID for tracking used items
+    const uniqueId = 'patient_detail_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    box.setAttribute('data-item-id', uniqueId);
+    
+    // Check if this item has been used before
+    if (usedItems.has(uniqueId)) {
+        box.classList.add('used');
+    }
+    
+    box.textContent = fullLine;
+    container.appendChild(box);
+    initializeDragAndDrop();
+}
+
+        function populateVitals(vitals) {
+            const container = document.getElementById('vitals-container');
+            const loading = document.getElementById('vitals-loading');
+            
+            if (!container) {
+                console.warn('Vitals container not found');
+                return;
+            }
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            if (vitals.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No recent vital signs available"|xlt }}</div>';
+                return;
+            }
+            
+            // Group vitals by date/encounter
+            const vitalGroups = {};
+            vitals.forEach(vital => {
+                // Try different date field names that might be used
+                const date = vital.date || vital.datetime || vital.created_time || vital.encounter_date || 'Unknown Date';
+                if (!vitalGroups[date]) {
+                    vitalGroups[date] = [];
+                }
+                vitalGroups[date].push(vital);
+            });
+            
+            // Debug: Log the vital groups to see what dates we're getting
+            console.log('Vital groups:', vitalGroups);
+            
+            // Create draggable groups for each date
+            Object.keys(vitalGroups).sort((a, b) => {
+                if (a === 'Unknown Date') return 1;
+                if (b === 'Unknown Date') return -1;
+                return new Date(b) - new Date(a);
+            }).forEach(date => {
+                const vitalSet = vitalGroups[date];
+                
+                // Format the date for display
+                let displayDate = date;
+                if (date !== 'Unknown Date') {
+                    try {
+                        // Try to parse and format the date
+                        const parsedDate = new Date(date);
+                        if (!isNaN(parsedDate.getTime())) {
+                            // Format as YYYY-MM-DD HH:MM:SS
+                            displayDate = parsedDate.getFullYear() + '-' + 
+                                        String(parsedDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                                        String(parsedDate.getDate()).padStart(2, '0') + ' ' +
+                                        String(parsedDate.getHours()).padStart(2, '0') + ':' + 
+                                        String(parsedDate.getMinutes()).padStart(2, '0') + ':' + 
+                                        String(parsedDate.getSeconds()).padStart(2, '0');
+                        }
+                    } catch (e) {
+                        console.warn('Date parsing error:', e);
+                        displayDate = date; // Use original if parsing fails
+                    }
+                }
+                
+                // Create combined content for all vitals from this date
+                let combinedContent = `Most recent vitals from: ${displayDate}\n\n`;
+                
+                vitalSet.forEach(vital => {
+                    // Extract the vital name and value from the content
+                    let vitalName = vital.header || vital.type || vital.name;
+                    let vitalValue = vital.content || vital.value || vital.data;
+                    
+                    // Clean up numeric values to remove trailing zeros
+                    if (typeof vitalValue === 'string') {
+                        // Remove trailing zeros from decimal numbers
+                        vitalValue = vitalValue.replace(/(\d+)\.0+(\s|$)/g, '$1$2');
+                        vitalValue = vitalValue.replace(/(\d+\.\d*?)0+(\s|$)/g, '$1$2');
+                    }
+                    
+                    combinedContent += `${vitalName}:\t${vitalValue}\n`;
+                });
+                
+                // Create a single draggable item for the entire vital set
+                const header = `Vital Signs - ${displayDate}`;
+                const item = createDraggableItem('vital-set', header, combinedContent.trim());
+                
+                // Add special styling for vital sets
+                item.classList.add('vital-set-item');
+                
+                container.appendChild(item);
+            });
+            
+            // Initialize drag and drop for new items
+            initializeDragAndDrop();
+        }
+
+        function populatePhysicalExam(findings) {
+            const container = document.getElementById('physical-container');
+            const loading = document.getElementById('physical-loading');
+            if (!container) {
+                console.warn('Physical exam container not found');
+                return;
+            }
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            container.innerHTML = '';
+            console.log('Physical exam findings received:', findings);
+            if (!findings || findings.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No physical exam data available"|xlt }}</div>';
+                return;
+            }
+            // Only display findings with type 'physical'
+            const filteredFindings = findings.filter(f => f.type === 'physical');
+            // Group findings by date
+            const findingsByDate = {};
+            filteredFindings.forEach(finding => {
+                // Sanitize date string to remove trailing colon and whitespace
+                if (typeof finding.date === 'string') {
+                    finding.date = finding.date.replace(/[:\s]+$/, '');
+                }
+                let date = finding.date || 'Unknown Date';
+                if (!findingsByDate[date]) findingsByDate[date] = [];
+                findingsByDate[date].push(finding);
+            });
+            Object.keys(findingsByDate).sort((a, b) => new Date(b) - new Date(a)).forEach(date => {
+                const group = findingsByDate[date];
+                // Remove trailing colon and whitespace from date if present
+                let cleanDate = date;
+                if (typeof cleanDate === 'string') {
+                    cleanDate = cleanDate.replace(/[:\s]+$/, '');
+                }
+                // Use cleanDate for both header and drag content
+                const header = `Physical Exam - ${cleanDate}`;
+                // Format each finding on its own line, like vitals
+                const content = '\n' + group.map(f => `${f.header}: ${f.content.replace(/; /g, '\n')}`).join('\n');
+                const item = createDraggableItem('physical-group', header, content);
+                item.classList.add('vital-set-item');
+                // Ensure drag-and-drop uses the cleaned header
+                item.setAttribute('data-header', header);
+                container.appendChild(item);
+            });
+            initializeDragAndDrop();
+        }
+
+        function populateLabs(labs) {
+            const container = document.getElementById('labs-container');
+            const loading = document.getElementById('labs-loading');
+            
+            if (!container) {
+                console.warn('Labs container not found');
+                return;
+            }
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            if (labs.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No recent lab results available"|xlt }}</div>';
+                return;
+            }
+            
+            labs.forEach(lab => {
+                const item = createDraggableItem(lab.type, lab.header, lab.content);
+                container.appendChild(item);
+            });
+            
+            // Initialize drag and drop for new items
+            initializeDragAndDrop();
+        }
+
+        function populateResultsTab(results) {
+            const container = document.getElementById('results-container');
+            const loading = document.getElementById('results-loading');
+            
+            if (!container) {
+                console.warn('Results container not found');
+                return;
+            }
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            if (results.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No test results available"|xlt }}</div>';
+                return;
+            }
+            
+            results.forEach(result => {
+                const item = createDraggableItem(result.type, result.header, result.content);
+                container.appendChild(item);
+            });
+            
+            // Initialize drag and drop for new items
+            initializeDragAndDrop();
+        }
+
+        function populateHistory(history) {
+            const container = document.getElementById('history-container');
+            const loading = document.getElementById('history-loading');
+            
+            if (!container) {
+                console.warn('History container not found');
+                return;
+            }
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            if (history.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No patient history available"|xlt }}</div>';
+                return;
+            }
+
+            history.forEach(item => {
+                const draggableItem = createDraggableItem(item.type, item.header, item.content);
+                container.appendChild(draggableItem);
+            });
+            
+            // Initialize drag and drop for the new elements
+            initializeDragAndDrop();
+        }        function populateROS(ros) {
+            const container = document.getElementById('ros-container');
+            const loading = document.getElementById('ros-loading');
+            if (!container) {
+                console.warn('ROS container not found');
+                return;
+            }
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            container.innerHTML = '';
+            console.log('Review of Systems received:', ros);
+            if (!ros || ros.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No review of systems data available"|xlt }}</div>';
+                return;
+            }
+            // Only display items with type 'ros'
+            const filteredROS = ros.filter(f => f.type === 'ros');
+            // Group ROS by date
+            const rosByDate = {};
+            filteredROS.forEach(item => {
+                // Sanitize date string to remove trailing colon and whitespace
+                if (typeof item.date === 'string') {
+                    item.date = item.date.replace(/[:\s]+$/, '');
+                }
+                let date = item.date || 'Unknown Date';
+                if (!rosByDate[date]) rosByDate[date] = [];
+                rosByDate[date].push(item);
+            });
+            Object.keys(rosByDate).sort((a, b) => new Date(b) - new Date(a)).forEach(date => {
+                const group = rosByDate[date];
+                // Remove trailing colon and whitespace from date if present
+                let cleanDate = date;
+                if (typeof cleanDate === 'string') {
+                    cleanDate = cleanDate.replace(/[:\s]+$/, '');
+                }
+                // Use cleanDate for both header and drag content
+                const header = `Review of Systems - ${cleanDate}`;
+                // Format each finding on its own line, like vitals
+                const content = '\n' + group.map(f => `${f.header}: ${f.content.replace(/; /g, '\n')}`).join('\n');
+                const item = createDraggableItem('ros-group', header, content);
+                item.classList.add('vital-set-item');
+                // Ensure drag-and-drop uses the cleaned header
+                item.setAttribute('data-header', header);
+                container.appendChild(item);
+            });
+            initializeDragAndDrop();
+        }
+
+        function createDraggableItem(type, header, content) {
+            // Only used for non-patient_detail types now
+            const item = document.createElement('div');
+            item.className = 'draggable-item';
+            item.draggable = true;
+            item.setAttribute('data-type', type);
+            
+            // Generate unique ID for tracking used items
+            const uniqueId = type + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            item.setAttribute('data-item-id', uniqueId);
+            
+            // Check if this item has been used before
+            if (usedItems.has(uniqueId)) {
+                item.classList.add('used');
+            }
+            
+            if (type === 'allergy') {
+                item.textContent = content || header;
+            } else {
+                const headerEl = document.createElement('div');
+                headerEl.className = 'data-item-header';
+                headerEl.textContent = header;
+                const contentEl = document.createElement('div');
+                contentEl.className = 'data-item-content';
+                contentEl.textContent = content;
+                item.appendChild(headerEl);
+                item.appendChild(contentEl);
+            }
+            return item;
+        }
+
+        function loadDefaultData() {
+            // Load default data if real data is not available
+            const defaultVitals = [
+                { type: 'vital', header: '{{ "Blood Pressure"|xlt }}', content: '120/80 mmHg (Normal)' },
+                { type: 'vital', header: '{{ "Heart Rate"|xlt }}', content: '72 bpm (Regular)' },
+                { type: 'vital', header: '{{ "Temperature"|xlt }}', content: '98.6°F (Normal)' },
+                { type: 'vital', header: '{{ "Respiratory Rate"|xlt }}', content: '16/min (Normal)' },
+                { type: 'vital', header: '{{ "Oxygen Saturation"|xlt }}', content: '98% on room air' }
+            ];
+            
+            populateVitals(defaultVitals);
+            populatePhysicalExam([]);
+            populateHistory([]);
+            populateAllergiesTab([]);
+            populateMedicationsTab([]);
+            populateProblemsTab([]);
+            populateProblemsTab([]);
+            
+            initializeDragAndDrop();
+        }
+
+        function populateAllergies(allergies) {
+            const container = document.getElementById('allergies-container');
+            const loading = document.getElementById('allergies-loading');
+            
+            if (!container) {
+                console.warn('Allergies container not found');
+                return;
+            }
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            container.innerHTML = '';
+            
+            if (allergies.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No allergies documented"|xlt }}</div>';
+                return;
+            }
+            
+            allergies.forEach(allergy => {
+                // For allergies, we want to show and drag the full content
+                const contentToShow = allergy.content || allergy.header || allergy.title || 'Allergy';
+
+                const item = createDraggableItem('allergy', contentToShow, contentToShow);
+                container.appendChild(item);
+            });
+
+            // Initialize drag and drop for new items
+            initializeDragAndDrop();
+        }
+
+        // Clinical data tab populate functions
+        function populateAllergiesTab(allergies) {
+            console.log('PopulateAllergiesTab called with:', allergies);
+            const container = document.getElementById('allergies-container');
+            const loading = document.getElementById('allergies-loading');
+            
+            if (!container) {
+                console.warn('Allergies container not found');
+                return;
+            }
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            container.innerHTML = '';
+            
+            if (allergies.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No allergies documented"|xlt }}</div>';
+                return;
+            }
+            
+            allergies.forEach(allergy => {
+                const headerText = allergy.header || allergy.title || 'Allergy';
+                let details = allergy.content || '';
+                try {
+                    const escapedHeader = headerText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const headerRegex = new RegExp('^\\s*' + escapedHeader + '\\s*[:\-–—]?\\s*', 'i');
+                    details = details.replace(headerRegex, '').trim();
+                } catch (e) {
+                    console.warn('Allergy header stripping failed', e);
+                }
+
+                const contentToShow = details || allergy.content || '';
+                const draggableItem = createDraggableItem(allergy.type, headerText, contentToShow);
+                container.appendChild(draggableItem);
+            });
+        }
+        
+        function populateMedications(medications) {
+            const container = document.getElementById('medications-container');
+            const loading = document.getElementById('medications-loading');
+            
+            if (!container) {
+                console.warn('Medications container not found');
+                return;
+            }
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            container.innerHTML = '';
+            
+            if (medications.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No medications documented"|xlt }}</div>';
+                return;
+            }
+            
+            medications.forEach(medication => {
+                const headerText = medication.header || medication.title || 'Medication';
+                let details = medication.content || '';
+
+                // Strip header from content if it appears at start to avoid duplication
+                try {
+                    const escapedHeader = headerText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const headerRegex = new RegExp('^\\s*' + escapedHeader + '\\s*[:\\-–—]?\\s*', 'i');
+                    details = details.replace(headerRegex, '').trim();
+                } catch (e) {
+                    console.warn('Medication header stripping failed', e);
+                }
+
+                const contentToShow = details || medication.content || '';
+
+                // Combine header and content into a single line for display and drag
+                const combinedLine = contentToShow ? (headerText + ' - ' + contentToShow) : headerText;
+                const item = createDraggableItem(medication.type, combinedLine, '');
+                container.appendChild(item);
+            });
+
+            // Initialize drag and drop for new items
+            initializeDragAndDrop();
+        }
+
+        function populatePrescriptions(prescriptions) {
+            const container = document.getElementById('prescriptions-container');
+            const loading = document.getElementById('prescriptions-loading');
+            
+            if (!container) {
+                console.warn('Prescriptions container not found');
+                return;
+            }
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            container.innerHTML = '';
+            
+            if (prescriptions.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No current prescriptions"|xlt }}</div>';
+                return;
+            }
+            
+            prescriptions.forEach(prescription => {
+                const headerText = prescription.header || prescription.drug || 'Prescription';
+                let details = prescription.content || '';
+
+                // Strip header from content if it appears at start to avoid duplication
+                try {
+                    const escapedHeader = headerText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const headerRegex = new RegExp('^\\s*' + escapedHeader + '\\s*[:\\-–—]?\\s*', 'i');
+                    details = details.replace(headerRegex, '').trim();
+                } catch (e) {
+                    console.warn('Prescription header stripping failed', e);
+                }
+
+                const contentToShow = details || prescription.content || '';
+
+                // Combine header and content into a single line for display and drag
+                const combinedLine = contentToShow ? (headerText + ' - ' + contentToShow) : headerText;
+                const item = createDraggableItem(prescription.type, combinedLine, '');
+                container.appendChild(item);
+            });
+
+            // Initialize drag and drop for new items
+            initializeDragAndDrop();
+        }
+        
+        function populateMedicationsTab(medications) {
+            console.log('PopulateMedicationsTab called with:', medications);
+            const container = document.getElementById('medications-container');
+            const loading = document.getElementById('medications-loading');
+            
+            if (!container) {
+                console.warn('Medications container not found');
+                return;
+            }
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            container.innerHTML = '';
+            
+            if (medications.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No current medications documented"|xlt }}</div>';
+                return;
+            }
+            medications.forEach(medication => {
+                const headerText = medication.header || medication.drug || 'Medication';
+                let details = medication.content || '';
+                try {
+                    const escapedHeader = headerText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const headerRegex = new RegExp('^\\s*' + escapedHeader + '\\s*[:\\-–—]?\\s*', 'i');
+                    details = details.replace(headerRegex, '').trim();
+                } catch (e) {
+                    console.warn('Medication header stripping failed', e);
+                }
+
+                const contentToShow = details || medication.content || '';
+                const combinedLine = contentToShow ? (headerText + ' - ' + contentToShow) : headerText;
+                const draggableItem = createDraggableItem(medication.type, combinedLine, '');
+                container.appendChild(draggableItem);
+            });
+        }
+        
+        function populateProblems(problems) {
+            const container = document.getElementById('problems-container');
+            const loading = document.getElementById('problems-loading');
+            
+            if (!container) {
+                console.warn('Problems container not found');
+                return;
+            }
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            container.innerHTML = '';
+            
+            if (problems.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No active medical problems"|xlt }}</div>';
+                return;
+            }
+            
+            problems.forEach(problem => {
+                const item = createDraggableItem(problem.type, problem.header, problem.content);
+                container.appendChild(item);
+            });
+            
+            // Initialize drag and drop for new items
+            initializeDragAndDrop();
+        }
+        
+        function populateProblemsTab(problems) {
+            console.log('PopulateProblemsTab called with:', problems);
+            const container = document.getElementById('problems-container');
+            const loading = document.getElementById('problems-loading');
+            
+            if (!container) {
+                console.warn('Problems container not found');
+                return;
+            }
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            container.innerHTML = '';
+            
+            if (problems.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No medical problems documented"|xlt }}</div>';
+                return;
+            }
+            
+            problems.forEach(problem => {
+                const draggableItem = createDraggableItem(problem.type, problem.header, problem.content);
+                container.appendChild(draggableItem);
+            });
+        }
+
+        function populateOrdersReferralsTab(forms) {
+            console.log('PopulateOrdersReferralsTab called with:', forms);
+            const container = document.getElementById('orders-referrals-container');
+            const loading = document.getElementById('orders-referrals-loading');
+            
+            if (!container) {
+                console.warn('Orders & Referrals container not found');
+                return;
+            }
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            container.innerHTML = '';
+            
+            if (!forms || forms.length === 0) {
+                container.innerHTML = '<div class="text-muted">{{ "No orders or referrals documented"|xlt }}</div>';
+                return;
+            }
+            
+            // Show all forms returned by the API (they are already filtered to Orders category)
+            forms.forEach(form => {
+                if (form.type === 'LBF') {
+                    let item = createDraggableItem('order-referral', form.header, form.content);
+                    container.appendChild(item);
+                }
+            });
+            
+            // Initialize drag and drop for the newly added items
+            initializeDragAndDrop();
+        }
+
+        // Add global functions to window for onclick handlers
+        window.toggleSection = toggleSection;
+
+        // Initialize sidebar - open patient details by default
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-open patient details section
+            toggleSection('patient-details');
+        });
+
+        $('#btnClose').click(close);
+    </script>
+</body>
+</html>

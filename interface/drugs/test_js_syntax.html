@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test JavaScript Syntax</title>
+</head>
+<body>
+    <div id="waiting_msg">Test Message</div>
+    
+    <script>
+    // Test the exact JavaScript structure we're using
+    console.log('Testing JavaScript syntax...');
+    
+    var checkCount = 0;
+    var msg_id = 'test123';
+    
+    var checkInterval = setInterval(function() {
+        checkCount++;
+        fetch('check_ack_status.php?msg_id=' + encodeURIComponent(msg_id))
+            .then(response => response.json())
+            .then(data => {
+                console.log('Data received:', data);
+                if(data.status === 'found') {
+                    clearInterval(checkInterval);
+                    document.getElementById('waiting_msg').innerHTML = '<div style="color:#28a745;">✓ Acknowledgment received from BD Pyxis</div><div style="margin-top:10px;font-size:14px;">Creating drug...</div>';
+                    setTimeout(function() {
+                        // Process the drug creation via AJAX
+                        fetch('process_drug_creation.php?msg_id=' + encodeURIComponent(msg_id))
+                            .then(response => response.text())
+                            .then(result => {
+                                console.log('Drug creation response:', result);
+                                // Extract drug ID from response if present
+                                var drugIdMatch = result.match(/ID: (\d+)/);
+                                if(drugIdMatch) {
+                                    var drugId = drugIdMatch[1];
+                                    document.getElementById('waiting_msg').innerHTML = '<div style="color:#28a745;font-size:18px;">✓ Drug created successfully!</div><div style="margin-top:10px;font-size:14px;">ID: ' + drugId + '</div>';
+                                    setTimeout(function() {
+                                        document.getElementById('waiting_msg').remove();
+                                        var saveBtn = parent.parent ? parent.parent.document.getElementById('form_save') : null;
+                                        if(saveBtn) saveBtn.disabled = false;
+                                        console.log('Redirecting to lot page with drug ID:', drugId);
+                                        window.location.href = 'add_edit_lot.php?drug=' + drugId + '&lot=0';
+                                    }, 2000);
+                                } else {
+                                    document.getElementById('waiting_msg').innerHTML = '<div style="color:#dc3545;font-size:18px;">❌ Error creating drug</div>';
+                                    setTimeout(function() {
+                                        document.getElementById('waiting_msg').remove();
+                                        var saveBtn = parent.parent ? parent.parent.document.getElementById('form_save') : null;
+                                        if(saveBtn) saveBtn.disabled = false;
+                                    }, 3000);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error processing drug creation:', error);
+                                document.getElementById('waiting_msg').innerHTML = '<div style="color:#dc3545;font-size:18px;">❌ Error processing drug</div>';
+                                setTimeout(function() {
+                                    document.getElementById('waiting_msg').remove();
+                                    var saveBtn = parent.parent ? parent.parent.document.getElementById('form_save') : null;
+                                    if(saveBtn) saveBtn.disabled = false;
+                                }, 3000);
+                            });
+                    }, 1000);
+                } else if(checkCount > 30) {
+                    clearInterval(checkInterval);
+                    document.getElementById('waiting_msg').innerHTML = '<div style="color:#dc3545;">⏳ Timeout waiting for BD Pyxis</div><div style="margin-top:10px;font-size:14px;">Please try again later</div>';
+                    document.body.style.cursor = 'default';
+                    var saveBtn = parent.parent ? parent.parent.document.getElementById('form_save') : null;
+                    if(saveBtn) saveBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error checking ACK status:', error);
+            });
+    }, 1000);
+    
+    console.log('JavaScript syntax test completed - no errors!');
+    </script>
+</body>
+</html>

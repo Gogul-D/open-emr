@@ -1,0 +1,664 @@
+[10-Oct-2025 02:31:24 America/Denver] Starting request handling with action: save_template
+[10-Oct-2025 02:31:24 America/Denver] POST data: Array
+(
+    [csrf_token] => e9e1c02d966161d21b8f80694813a410c404f8e9
+    [context] => test context
+    [category] => test category
+    [template_name] => test template
+    [template_content] => ddfsffsfssfsf
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:31:24 America/Denver] Session data: Array
+(
+    [site_id] => default
+    [enable_database_connection_pooling] => 1
+    [language_choice] => 1
+    [language_direction] => ltr
+    [authUser] => Administrator
+    [authPass] => $2y$10$kecMWsFllVvRga5teeq.8.BS8WKqSrzdLcIUX7JmjmkhBwe4u7MeG
+    [authUserID] => 1
+    [authProvider] => Default
+    [userauthorized] => 0
+    [csrf_private_key] => “bÜY†úž­&.vÊ
+õ—>µÑ
+É»Ö›{W
+    [session_database_uuid] =>  Û’:sGE…±BÏ¼e×
+    [encounter] => 91
+    [default_open_tabs] => Array
+        (
+            [0] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => cal
+                    [title] => Calendar
+                    [seq] => 10
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/main_info.php
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+            [1] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => msg
+                    [title] => Message Inbox
+                    [seq] => 50
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/messages/messages.php?form_active=1
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+        )
+
+    [pc_facility] => 0
+    [viewtype] => day
+    [keepAliveTime] => 1760085060
+    [lastcaldate] => 2025-10-09
+    [pid] => 3
+    [alert_notify_pid] => 3
+)
+
+[10-Oct-2025 02:31:24 America/Denver] Processing save_template action
+[10-Oct-2025 02:31:24 America/Denver] saveCustomTemplate called with POST data: Array
+(
+    [csrf_token] => e9e1c02d966161d21b8f80694813a410c404f8e9
+    [context] => test context
+    [category] => test category
+    [template_name] => test template
+    [template_content] => ddfsffsfssfsf
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:31:24 America/Denver] Processed fields - Context: test context, Category: test category, Name: test template
+[10-Oct-2025 02:31:24 America/Denver] Exception in manage_templates.php: A template with this name already exists in this category
+[10-Oct-2025 02:31:24 America/Denver] Stack trace: #0 C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php(70): saveCustomTemplate()
+#1 {main}
+[10-Oct-2025 02:31:44 America/Denver] Starting request handling with action: save_template
+[10-Oct-2025 02:31:44 America/Denver] POST data: Array
+(
+    [csrf_token] => e9e1c02d966161d21b8f80694813a410c404f8e9
+    [context] => test context1
+    [category] => test category1
+    [template_name] => test template1
+    [template_content] => ddfsffsfssfsf11111
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:31:44 America/Denver] Session data: Array
+(
+    [site_id] => default
+    [enable_database_connection_pooling] => 1
+    [language_choice] => 1
+    [language_direction] => ltr
+    [authUser] => Administrator
+    [authPass] => $2y$10$kecMWsFllVvRga5teeq.8.BS8WKqSrzdLcIUX7JmjmkhBwe4u7MeG
+    [authUserID] => 1
+    [authProvider] => Default
+    [userauthorized] => 0
+    [csrf_private_key] => “bÜY†úž­&.vÊ
+õ—>µÑ
+É»Ö›{W
+    [session_database_uuid] =>  Û’:sGE…±BÏ¼e×
+    [encounter] => 91
+    [default_open_tabs] => Array
+        (
+            [0] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => cal
+                    [title] => Calendar
+                    [seq] => 10
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/main_info.php
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+            [1] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => msg
+                    [title] => Message Inbox
+                    [seq] => 50
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/messages/messages.php?form_active=1
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+        )
+
+    [pc_facility] => 0
+    [viewtype] => day
+    [keepAliveTime] => 1760085060
+    [lastcaldate] => 2025-10-09
+    [pid] => 3
+    [alert_notify_pid] => 3
+)
+
+[10-Oct-2025 02:31:44 America/Denver] Processing save_template action
+[10-Oct-2025 02:31:44 America/Denver] saveCustomTemplate called with POST data: Array
+(
+    [csrf_token] => e9e1c02d966161d21b8f80694813a410c404f8e9
+    [context] => test context1
+    [category] => test category1
+    [template_name] => test template1
+    [template_content] => ddfsffsfssfsf11111
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:31:44 America/Denver] Processed fields - Context: test context1, Category: test category1, Name: test template1
+[10-Oct-2025 02:31:44 America/Denver] PHP Fatal error:  Uncaught Error: Call to undefined function sqlInsertId() in C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php:164
+Stack trace:
+#0 C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php(70): saveCustomTemplate()
+#1 {main}
+  thrown in C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php on line 164
+[10-Oct-2025 02:34:13 America/Denver] Starting request handling with action: save_template
+[10-Oct-2025 02:34:13 America/Denver] POST data: Array
+(
+    [csrf_token] => e9e1c02d966161d21b8f80694813a410c404f8e9
+    [context] => test context001
+    [category] => test category001
+    [template_name] => test template001
+    [template_content] => vhfjvvjvjvjvv001
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:34:13 America/Denver] Session data: Array
+(
+    [site_id] => default
+    [enable_database_connection_pooling] => 1
+    [language_choice] => 1
+    [language_direction] => ltr
+    [authUser] => Administrator
+    [authPass] => $2y$10$kecMWsFllVvRga5teeq.8.BS8WKqSrzdLcIUX7JmjmkhBwe4u7MeG
+    [authUserID] => 1
+    [authProvider] => Default
+    [userauthorized] => 0
+    [csrf_private_key] => “bÜY†úž­&.vÊ
+õ—>µÑ
+É»Ö›{W
+    [session_database_uuid] =>  Û’:sGE…±BÏ¼e×
+    [encounter] => 91
+    [default_open_tabs] => Array
+        (
+            [0] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => cal
+                    [title] => Calendar
+                    [seq] => 10
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/main_info.php
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+            [1] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => msg
+                    [title] => Message Inbox
+                    [seq] => 50
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/messages/messages.php?form_active=1
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+        )
+
+    [pc_facility] => 0
+    [viewtype] => day
+    [keepAliveTime] => 1760085241
+    [lastcaldate] => 2025-10-09
+    [pid] => 3
+    [alert_notify_pid] => 3
+)
+
+[10-Oct-2025 02:34:13 America/Denver] Processing save_template action
+[10-Oct-2025 02:34:13 America/Denver] saveCustomTemplate called with POST data: Array
+(
+    [csrf_token] => e9e1c02d966161d21b8f80694813a410c404f8e9
+    [context] => test context001
+    [category] => test category001
+    [template_name] => test template001
+    [template_content] => vhfjvvjvjvjvv001
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:34:13 America/Denver] Processed fields - Context: test context001, Category: test category001, Name: test template001
+[10-Oct-2025 02:34:13 America/Denver] PHP Fatal error:  Uncaught Error: Call to undefined function sqlInsertId() in C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php:163
+Stack trace:
+#0 C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php(69): saveCustomTemplate()
+#1 {main}
+  thrown in C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php on line 163
+[10-Oct-2025 02:35:30 America/Denver] Starting request handling with action: save_template
+[10-Oct-2025 02:35:30 America/Denver] POST data: Array
+(
+    [csrf_token] => e9e1c02d966161d21b8f80694813a410c404f8e9
+    [context] => ddsggg
+    [category] => gsggdgsdgfs
+    [template_name] => dgsgsgsdgs
+    [template_content] => dgsdgsdgsdgsdgsdgs
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:35:30 America/Denver] Session data: Array
+(
+    [site_id] => default
+    [enable_database_connection_pooling] => 1
+    [language_choice] => 1
+    [language_direction] => ltr
+    [authUser] => Administrator
+    [authPass] => $2y$10$kecMWsFllVvRga5teeq.8.BS8WKqSrzdLcIUX7JmjmkhBwe4u7MeG
+    [authUserID] => 1
+    [authProvider] => Default
+    [userauthorized] => 0
+    [csrf_private_key] => “bÜY†úž­&.vÊ
+õ—>µÑ
+É»Ö›{W
+    [session_database_uuid] =>  Û’:sGE…±BÏ¼e×
+    [encounter] => 91
+    [default_open_tabs] => Array
+        (
+            [0] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => cal
+                    [title] => Calendar
+                    [seq] => 10
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/main_info.php
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+            [1] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => msg
+                    [title] => Message Inbox
+                    [seq] => 50
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/messages/messages.php?form_active=1
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+        )
+
+    [pc_facility] => 0
+    [viewtype] => day
+    [keepAliveTime] => 1760085302
+    [lastcaldate] => 2025-10-09
+    [pid] => 3
+    [alert_notify_pid] => 3
+)
+
+[10-Oct-2025 02:35:30 America/Denver] Processing save_template action
+[10-Oct-2025 02:35:30 America/Denver] saveCustomTemplate called with POST data: Array
+(
+    [csrf_token] => e9e1c02d966161d21b8f80694813a410c404f8e9
+    [context] => ddsggg
+    [category] => gsggdgsdgfs
+    [template_name] => dgsgsgsdgs
+    [template_content] => dgsdgsdgsdgsdgsdgs
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:35:30 America/Denver] Processed fields - Context: ddsggg, Category: gsggdgsdgfs, Name: dgsgsgsdgs
+[10-Oct-2025 02:35:30 America/Denver] PHP Fatal error:  Uncaught Error: Call to undefined function sqlInsertId() in C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php:163
+Stack trace:
+#0 C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php(69): saveCustomTemplate()
+#1 {main}
+  thrown in C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php on line 163
+[10-Oct-2025 02:37:02 America/Denver] Starting request handling with action: save_template
+[10-Oct-2025 02:37:02 America/Denver] POST data: Array
+(
+    [csrf_token] => 2603b766302bd661697f3c8089a173d4354ff3fb
+    [context] => dsdsdd
+    [category] => sdsdsdsdsd
+    [template_name] => sdsdsdsdsdsdsds
+    [template_content] => sdsdsdsdsdsdsd
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:37:02 America/Denver] Session data: Array
+(
+    [site_id] => default
+    [enable_database_connection_pooling] => 1
+    [language_choice] => 1
+    [language_direction] => ltr
+    [authUser] => Administrator
+    [authPass] => $2y$10$kecMWsFllVvRga5teeq.8.BS8WKqSrzdLcIUX7JmjmkhBwe4u7MeG
+    [authUserID] => 1
+    [authProvider] => Default
+    [userauthorized] => 0
+    [csrf_private_key] => éÊg}…W[mVPÐÖWcèË DªêR¦Î¿ƒQ
+    [session_database_uuid] =>  .m£C²¸ÚàF@
+    [encounter] => 92
+    [default_open_tabs] => Array
+        (
+            [0] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => cal
+                    [title] => Calendar
+                    [seq] => 10
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/main_info.php
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+            [1] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => msg
+                    [title] => Message Inbox
+                    [seq] => 50
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/messages/messages.php?form_active=1
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+        )
+
+    [pc_facility] => 0
+    [viewtype] => day
+    [keepAliveTime] => 1760085389
+    [lastcaldate] => 2025-10-10
+    [pid] => 6
+    [alert_notify_pid] => 6
+)
+
+[10-Oct-2025 02:37:02 America/Denver] Processing save_template action
+[10-Oct-2025 02:37:02 America/Denver] saveCustomTemplate called with POST data: Array
+(
+    [csrf_token] => 2603b766302bd661697f3c8089a173d4354ff3fb
+    [context] => dsdsdd
+    [category] => sdsdsdsdsd
+    [template_name] => sdsdsdsdsdsdsds
+    [template_content] => sdsdsdsdsdsdsd
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:37:02 America/Denver] Processed fields - Context: dsdsdd, Category: sdsdsdsdsd, Name: sdsdsdsdsdsdsds
+[10-Oct-2025 02:37:02 America/Denver] PHP Fatal error:  Uncaught Error: Call to undefined function sqlInsertId() in C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php:163
+Stack trace:
+#0 C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php(69): saveCustomTemplate()
+#1 {main}
+  thrown in C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php on line 163
+[10-Oct-2025 02:37:22 America/Denver] Starting request handling with action: save_template
+[10-Oct-2025 02:37:22 America/Denver] POST data: Array
+(
+    [csrf_token] => 2603b766302bd661697f3c8089a173d4354ff3fb
+    [context] => ddsdsdsdsd
+    [category] => sdsdsdsds
+    [template_name] => dsdsdsdsd
+    [template_content] => sdsdssdsdsd
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:37:22 America/Denver] Session data: Array
+(
+    [site_id] => default
+    [enable_database_connection_pooling] => 1
+    [language_choice] => 1
+    [language_direction] => ltr
+    [authUser] => Administrator
+    [authPass] => $2y$10$kecMWsFllVvRga5teeq.8.BS8WKqSrzdLcIUX7JmjmkhBwe4u7MeG
+    [authUserID] => 1
+    [authProvider] => Default
+    [userauthorized] => 0
+    [csrf_private_key] => éÊg}…W[mVPÐÖWcèË DªêR¦Î¿ƒQ
+    [session_database_uuid] =>  .m£C²¸ÚàF@
+    [encounter] => 92
+    [default_open_tabs] => Array
+        (
+            [0] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => cal
+                    [title] => Calendar
+                    [seq] => 10
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/main_info.php
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+            [1] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => msg
+                    [title] => Message Inbox
+                    [seq] => 50
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/messages/messages.php?form_active=1
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+        )
+
+    [pc_facility] => 0
+    [viewtype] => day
+    [keepAliveTime] => 1760085389
+    [lastcaldate] => 2025-10-10
+    [pid] => 6
+    [alert_notify_pid] => 6
+)
+
+[10-Oct-2025 02:37:22 America/Denver] Processing save_template action
+[10-Oct-2025 02:37:22 America/Denver] saveCustomTemplate called with POST data: Array
+(
+    [csrf_token] => 2603b766302bd661697f3c8089a173d4354ff3fb
+    [context] => ddsdsdsdsd
+    [category] => sdsdsdsds
+    [template_name] => dsdsdsdsd
+    [template_content] => sdsdssdsdsd
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:37:22 America/Denver] Processed fields - Context: ddsdsdsdsd, Category: sdsdsdsds, Name: dsdsdsdsd
+[10-Oct-2025 02:37:22 America/Denver] PHP Fatal error:  Uncaught Error: Call to undefined function sqlInsertId() in C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php:163
+Stack trace:
+#0 C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php(69): saveCustomTemplate()
+#1 {main}
+  thrown in C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php on line 163
+[10-Oct-2025 02:39:47 America/Denver] Starting request handling with action: save_template
+[10-Oct-2025 02:39:47 America/Denver] POST data: Array
+(
+    [csrf_token] => 2603b766302bd661697f3c8089a173d4354ff3fb
+    [context] => ffdggfddg
+    [category] => dfggdgfg
+    [template_name] => dfgdfgdfgdgdfg
+    [template_content] => dfgdfbvbbcvbvcbb
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:39:47 America/Denver] Session data: Array
+(
+    [site_id] => default
+    [enable_database_connection_pooling] => 1
+    [language_choice] => 1
+    [language_direction] => ltr
+    [authUser] => Administrator
+    [authPass] => $2y$10$kecMWsFllVvRga5teeq.8.BS8WKqSrzdLcIUX7JmjmkhBwe4u7MeG
+    [authUserID] => 1
+    [authProvider] => Default
+    [userauthorized] => 0
+    [csrf_private_key] => éÊg}…W[mVPÐÖWcèË DªêR¦Î¿ƒQ
+    [session_database_uuid] =>  .m£C²¸ÚàF@
+    [encounter] => 92
+    [default_open_tabs] => Array
+        (
+            [0] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => cal
+                    [title] => Calendar
+                    [seq] => 10
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/main_info.php
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+            [1] => Array
+                (
+                    [list_id] => default_open_tabs
+                    [option_id] => msg
+                    [title] => Message Inbox
+                    [seq] => 50
+                    [is_default] => 0
+                    [option_value] => 0
+                    [mapping] => 
+                    [notes] => interface/main/messages/messages.php?form_active=1
+                    [codes] => 
+                    [toggle_setting_1] => 0
+                    [toggle_setting_2] => 0
+                    [activity] => 1
+                    [subtype] => 
+                    [edit_options] => 1
+                    [timestamp] => 2024-08-29 08:22:58
+                )
+
+        )
+
+    [pc_facility] => 0
+    [viewtype] => day
+    [keepAliveTime] => 1760085569
+    [lastcaldate] => 2025-10-10
+    [pid] => 6
+    [alert_notify_pid] => 6
+)
+
+[10-Oct-2025 02:39:47 America/Denver] Processing save_template action
+[10-Oct-2025 02:39:47 America/Denver] saveCustomTemplate called with POST data: Array
+(
+    [csrf_token] => 2603b766302bd661697f3c8089a173d4354ff3fb
+    [context] => ffdggfddg
+    [category] => dfggdgfg
+    [template_name] => dfgdfgdfgdgdfg
+    [template_content] => dfgdfbvbbcvbvcbb
+    [is_public] => on
+    [action] => save_template
+)
+
+[10-Oct-2025 02:39:47 America/Denver] Processed fields - Context: ffdggfddg, Category: dfggdgfg, Name: dfgdfgdfgdgdfg
+[10-Oct-2025 02:39:47 America/Denver] PHP Fatal error:  Uncaught Error: Call to undefined function sqlInsertId() in C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php:173
+Stack trace:
+#0 C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php(79): saveCustomTemplate()
+#1 {main}
+  thrown in C:\wamp64\www\phix-openemr\interface\forms\soap\manage_templates.php on line 173

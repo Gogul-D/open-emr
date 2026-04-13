@@ -1,0 +1,789 @@
+{**
+ * Prescription edit
+ *
+ * @package   OpenEMR
+ * @link      http://www.open-emr.org
+ * @author    Brady Miller <brady.g.miller@gmail.com>
+ * @copyright Copyright (c) 2017-2018 Brady Miller <brady.g.miller@gmail.com>
+ * @license   https://github.com/openemr/openemr/blob/master/LICENSE GNU General Public License 3
+ *}
+<!DOCTYPE html>
+<html>
+<head>
+
+    {headerTemplate assets='datetime-picker|select2'}
+
+<script>
+
+
+    function my_process_lookup(drug, rxcode = '') {
+      // Pass the variable
+      let newOption = new Option(drug, drug, true, true);
+      $("#rxnorm_drugcode").val(rxcode);
+      $('#drug').append(newOption).trigger('change');
+      $('#hiddendiv').hide();
+      $("#hiddendiv").html( "&nbsp;" );
+    }
+
+</script>
+<!---Gen Look up-->
+
+<script>
+
+ // This holds all the default drug attributes.
+ // This was html escaped previously
+
+ var drugopts = [{if !empty($DRUG_ATTRIBUTES)}{$DRUG_ATTRIBUTES}{/if}];
+ 
+ // DEBUG: Check drugopts length
+ console.log('drugopts array initialized with', drugopts.length, 'drugs');
+ if (drugopts.length > 0 && drugopts[0]) {
+  console.log('First drug has', drugopts[0].length, 'properties. Expected: 18 (indices 0-17)');
+  console.log('Sample first drug:', drugopts[0]);
+ }
+
+
+ // Helper to choose an option from its value.
+ function selchoose(sel, value) {
+  var o = sel.options;
+  for (let i = 0; i < o.length; ++i) {
+   o[i].selected = (o[i].value == value);
+  }
+ }
+
+ // Fill in default values when a drop-down drug is selected.
+ function drugselected(sel) {
+  var f = document.forms[0];
+  var i = f.drug_id.selectedIndex - 1;
+  console.log('drugselected called, index:', i);
+  if (i >= 0) {
+   var d = drugopts[i];
+   console.log('Selected drug data:', d);
+   console.log('Concentration Volume (d[13]):', d[13]);
+   console.log('Concentration Volume Unit (d[14]):', d[14]);
+   console.log('Total Volume (d[15]):', d[15]);
+   console.log('Total Volume Unit (d[16]):', d[16]);
+   console.log('Is Packet (d[17]):', d[17]);
+   
+   var newOption = new Option(d[0], d[0], true, true);
+   $('#drug').append(newOption).trigger('change');
+   selchoose(f.form, d[1]);
+   if (f.dosage) f.dosage.value = d[2];
+   if (f.size) f.size.value = d[3];
+   if (f.rxnorm_drugcode) f.rxnorm_drugcode.value = d[11];
+   if (f.unit) selchoose(f.unit, d[4]);
+   if (f.route) selchoose(f.route, d[5]);
+   if (f.interval) selchoose(f.interval, d[6]);
+   if (f.substitute) selchoose(f.substitute, d[7]);
+   if (f.quantity) f.quantity.value = d[8];
+   if (f.disp_quantity) f.disp_quantity.value = d[8];
+   if (f.refills) selchoose(f.refills, d[9]);
+   if (f.per_refill) f.per_refill.value = d[10];
+   
+   // Populate concentration and total volume fields from drug using getElementById
+   var concVolField = document.getElementById('concentration_volume');
+   if (concVolField) {
+    concVolField.value = d[13] || '';
+    console.log('Set concentration_volume to:', concVolField.value);
+   } else {
+    console.log('ERROR: concentration_volume field not found');
+   }
+   
+   var concVolUnitField = document.getElementById('concentration_volume_unit');
+   if (concVolUnitField) {
+    selchoose(concVolUnitField, d[14] || '');
+    console.log('Set concentration_volume_unit to:', d[14]);
+   } else {
+    console.log('ERROR: concentration_volume_unit field not found');
+   }
+   
+   var totalVolField = document.getElementById('total_volume');
+   if (totalVolField) {
+    totalVolField.value = d[15] || '';
+    console.log('Set total_volume to:', totalVolField.value);
+   } else {
+    console.log('ERROR: total_volume field not found');
+   }
+   
+   var totalVolUnitField = document.getElementById('total_volume_unit');
+   if (totalVolUnitField) {
+    selchoose(totalVolUnitField, d[16] || '');
+    console.log('Set total_volume_unit to:', d[16]);
+   } else {
+    console.log('ERROR: total_volume_unit field not found');
+   }
+   
+   // Check if this is a packet drug and set read-only state
+   var isPacket = d[17] == '1' || d[17] == 1;
+   console.log('Is packet drug:', isPacket);
+   
+   // Set visibility for packet-specific field sections
+   // Note: quantity_section is always visible for both packet and regular drugs
+   var sectionsToHide = ['dose_units_section', 'concentration_section', 'total_volume_section'];
+   sectionsToHide.forEach(function(sectionId) {
+    var section = document.getElementById(sectionId);
+    if (section) {
+     if (isPacket) {
+      section.style.display = 'none';
+     } else {
+      section.style.display = ''; // Remove inline style to let Bootstrap classes work
+     }
+    }
+   });
+   
+   // Load packet component drugs table if this is a packet
+   loadPacketDrugs(d[12], isPacket); // drug_id is at index 12 in drugopts
+   
+   // Load lots for the selected drug
+   loadLotsForDrug(d[12]); // drug_id is at index 12 in drugopts
+  }
+ }
+
+ // Load component drugs for a packet
+ function loadPacketDrugs(drugId, isPacket) {
+  console.log('Loading packet drugs. drugId:', drugId, 'isPacket:', isPacket);
+  
+  if (!isPacket || !drugId) {
+   $('#packet_drugs_section').hide();
+   return;
+  }
+  
+  $.ajax({
+   url: 'library/ajax/packet_drugs.php',
+   type: 'GET',
+   data: { 
+    drug_id: drugId,
+    csrf_token_form: '{$CSRF_TOKEN_FORM}'
+   },
+   success: function(response) {
+    console.log('Packet drugs response:', response);
+    try {
+     // Check if response is a string and parse it
+     var drugs = typeof response === 'string' ? JSON.parse(response) : response;
+     console.log('Parsed drugs:', drugs);
+     
+     if (drugs && drugs.length > 0) {
+      var html = '<table class="table table-sm table-bordered" style="background-color: #f9f9f9;">';
+      html += '<thead style="background-color: #e8e8e8;"><tr>';
+      html += '<th>Drug Name</th><th>Form</th><th>Strength</th><th>Unit</th><th>Route</th><th>Dose</th><th>Frequency</th><th>Quantity</th>';
+      html += '</tr></thead><tbody>';
+      
+      drugs.forEach(function(drug) {
+       html += '<tr>';
+       html += '<td style="padding: 8px;">' + (drug.name || '') + '</td>';
+       html += '<td style="padding: 8px;">' + (drug.form_display || '') + '</td>';
+       html += '<td style="padding: 8px;">' + (drug.size || '') + '</td>';
+       html += '<td style="padding: 8px;">' + (drug.unit_display || '') + '</td>';
+       html += '<td style="padding: 8px;">' + (drug.route_display || '') + '</td>';
+       html += '<td style="padding: 8px;">' + (drug.dose || '') + '</td>';
+       html += '<td style="padding: 8px;">' + (drug.frequency_display || '') + '</td>';
+       html += '<td style="padding: 8px;">' + (drug.quantity || '') + '</td>';
+       html += '</tr>';
+      });
+      
+      html += '</tbody></table>';
+      $('#packet_drugs_table').html(html);
+      $('#packet_drugs_section').show();
+     } else {
+      $('#packet_drugs_section').hide();
+     }
+    } catch(e) {
+     console.error('Error parsing packet drugs response:', e);
+     console.error('Full response:', response);
+     $('#packet_drugs_section').hide();
+    }
+   },
+   error: function(xhr, status, error) {
+    console.log('AJAX error:', status, error);
+    console.log('Response text:', xhr.responseText);
+    $('#packet_drugs_section').hide();
+   }
+  });
+ }
+
+ // Load available lots for a drug
+ function loadLotsForDrug(drugId) {
+  console.log('Loading lots for drugId:', drugId);
+  if (!drugId) {
+   $('#lot_section').hide();
+   return;
+  }
+  
+  $.ajax({
+   url: 'library/ajax/drug_lots.php',
+   type: 'GET',
+   data: { 
+    drug_id: drugId,
+    csrf_token_form: '{$CSRF_TOKEN_FORM}'
+   },
+   success: function(response) {
+    console.log('AJAX response:', response);
+    var lots = JSON.parse(response);
+    console.log('Parsed lots:', lots);
+    var lotSelect = $('#lot_number');
+    lotSelect.empty();
+    lotSelect.append('<option value="">{xlt t="Select Lot"}</option>');
+    
+    if (lots.length > 0) {
+     lots.forEach(function(lot) {
+      var optionText = lot.lot_number + ' (Exp: ' + lot.expiration + ', Available: ' + lot.availability + ')';
+      lotSelect.append('<option value="' + lot.lot_number + '">' + optionText + '</option>');
+     });
+     // Auto-select the expiring lot (first in the list since we order by expiration)
+     if (lots.length > 0) {
+      lotSelect.val(lots[0].lot_number);
+      console.log('Auto-selected lot:', lots[0].lot_number);
+     }
+     $('#lot_section').show();
+    } else {
+     $('#lot_section').hide();
+    }
+   },
+   error: function(xhr, status, error) {
+    console.log('AJAX error:', status, error);
+    $('#lot_section').hide();
+   }
+  });
+ }
+
+ // Invoke the popup to dispense a drug.
+ function dispense() {
+  var f = document.forms[0];
+  dlgopen('interface/drugs/dispense_drug.php' +
+   '?drug_id=' + {$prescription->get_drug_id()|js_url} +
+   '&prescription=' + encodeURIComponent(f.id.value) +
+   '&quantity=' + encodeURIComponent(f.disp_quantity.value) +
+   '&fee=' + encodeURIComponent(f.disp_fee.value),
+   '_blank', 400, 200);
+ }
+
+ function quantityChanged() {
+  var f = document.forms[0];
+  f.per_refill.value = f.quantity.value;
+  if (f.disp_quantity) {
+   f.disp_quantity.value = f.quantity.value;
+  }
+ }
+
+ // Initialize when document is ready
+ $(document).ready(function() {
+  // Load lots when drug field changes
+  $('#drug').on('change', function() {
+   var selectedData = $('#drug').select2('data')[0];
+   if (selectedData) {
+    var drugName = selectedData.text.split(' (RxCUI:')[0].trim();
+    console.log('Selected drug name:', drugName);
+    if (drugName) {
+     // Find the drug data from the drugopts array by matching the drug name (case insensitive)
+     var drugData = null;
+     var drugId = null;
+     for (var i = 0; i < drugopts.length; i++) {
+      if (drugopts[i][0].toLowerCase() === drugName.toLowerCase()) {
+       drugData = drugopts[i];
+       drugId = drugopts[i][12]; // drug_id is at index 12
+       break;
+      }
+     }
+     console.log('Found drugId:', drugId);
+     console.log('Found drugData:', drugData);
+     
+     if (drugData) {
+      // Populate concentration and total volume fields
+      var concVolField = document.getElementById('concentration_volume');
+      if (concVolField) {
+       concVolField.value = drugData[13] || '';
+       console.log('Set concentration_volume to:', concVolField.value);
+      }
+      
+      var concVolUnitField = document.getElementById('concentration_volume_unit');
+      if (concVolUnitField) {
+       selchoose(concVolUnitField, drugData[14] || '');
+       console.log('Set concentration_volume_unit to:', drugData[14]);
+      }
+      
+      var totalVolField = document.getElementById('total_volume');
+      if (totalVolField) {
+       totalVolField.value = drugData[15] || '';
+       console.log('Set total_volume to:', totalVolField.value);
+      }
+      
+      var totalVolUnitField = document.getElementById('total_volume_unit');
+      if (totalVolUnitField) {
+       selchoose(totalVolUnitField, drugData[16] || '');
+       console.log('Set total_volume_unit to:', drugData[16]);
+      }
+      
+      // Check if this is a packet drug and hide non-packet fields
+      var isPacket = drugData[17] == '1' || drugData[17] == 1;
+      console.log('Is packet drug:', isPacket);
+      
+      // Set visibility for packet-specific field sections
+      // Note: quantity_section is always visible for both packet and regular drugs
+      var sectionsToHide = ['dose_units_section', 'concentration_section', 'total_volume_section'];
+      sectionsToHide.forEach(function(sectionId) {
+       var section = document.getElementById(sectionId);
+       if (section) {
+        if (isPacket) {
+         section.style.display = 'none';
+        } else {
+         section.style.display = ''; // Remove inline style to let Bootstrap classes work
+        }
+       }
+      });
+      
+      // Load packet component drugs if this is a packet
+      if (isPacket) {
+       loadPacketDrugs(drugId, true);
+      } else {
+       loadPacketDrugs(drugId, false);
+      }
+     }
+     
+     if (drugId) {
+      loadLotsForDrug(drugId);
+     } else {
+      $('#lot_section').hide();
+     }
+    } else {
+     $('#lot_section').hide();
+    }
+   } else {
+    $('#lot_section').hide();
+   }
+  });
+ });
+
+</script>
+
+</head>
+<body id="prescription_edit">
+<div class="container">
+    {if $HL7_STATUS_MESSAGE}
+    <div class="alert alert-{$HL7_STATUS_TYPE|default:'info'} alert-dismissible fade show pyxis-status-alert" role="alert" style="font-size: 1.3em; padding: 1.2em; margin: 1em auto; text-align: center; max-width: 700px; border: 2px solid; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+        <span style="font-size: 1em;">{$HL7_STATUS_MESSAGE}</span>
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="font-size: 1.2em;">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    {/if}
+    <form name="prescribe" id="prescribe"  method="post" action="{$FORM_ACTION}" >
+        <table>
+            <tr>
+                <td class="title font-weight-bold">{xlt t='Add'}/{xlt t='Edit'}&nbsp;</td>
+                <td>
+                    <a id="save" href=# onclick="submitfun();" class="btn btn-primary btn-sm btn-save">{xlt t='Save'}</a>
+                    {if !empty($DRUG_ARRAY_VALUES)}
+                    &nbsp; &nbsp; &nbsp; &nbsp;
+                    {if $prescription->get_refills() >= $prescription->get_dispensation_count()}
+                        <input type="submit" name="disp_button"class='btn btn-primary btn-sm my-0 mr-1 ml-1' value="{xla t='Save and Dispense'}" />
+                        <input class="input-sm" type="text" name="disp_quantity" size="2" maxlength="10" value="{$DISP_QUANTITY|attr}" />
+                        units, {$GBL_CURRENCY_SYMBOL|text}
+                        <input class="input-sm" type="text" name="disp_fee" size="5" maxlength="10" value="{$DISP_FEE|attr}" />
+                    {else}&nbsp;
+                        {xlt t='prescription has reached its limit of'} {$prescription->get_refills()|text} {xlt t='refills'}.
+                    {/if}
+                {/if}
+                <a id="back" class='btn btn-secondary btn-sm btn-back' href="controller.php?prescription&list&id={$prescription->patient->id|attr_url}">{xlt t='Back'}</a>
+                </td>
+            </tr>
+        </table>
+        <!-- Drug Inventory section removed: only for print view, not for add/edit form -->
+        <!-- All fields before Starting Date removed for add/edit form. Only Starting Date and fields after it remain. -->
+
+        {if $GLOBALS.enable_amc_prompting}
+        <div class='float-right border mr-5'>
+            <div class='float-left m-1'>
+            {amcCollect amc_id='e_prescribe_amc' patient_id=$prescription->patient->id object_category='prescriptions' object_id=$prescription->id}
+            {if not $amcCollectReturn}
+                <input type="checkbox" id="escribe_flag" name="escribe_flag" />
+            {else}
+                <input type="checkbox" id="escribe_flag" name="escribe_flag" checked="checked" />
+            {/if}
+            <span class="text">{xlt t='E-Prescription?'}</span><br />
+
+            {amcCollect amc_id='e_prescribe_chk_formulary_amc' patient_id=$prescription->patient->id object_category='prescriptions' object_id=$prescription->id}
+            {if not $amcCollectReturn}
+                <input type="checkbox" id="checked_formulary_flag" name="checked_formulary_flag" />
+            {else}
+                <input type="checkbox" id="checked_formulary_flag" name="checked_formulary_flag" checked="checked" />
+            {/if}
+            <span class="text">{xlt t='Checked Drug Formulary?'}</span><br />
+
+            {amcCollect amc_id='e_prescribe_cont_subst_amc' patient_id=$prescription->patient->id object_category='prescriptions' object_id=$prescription->id}
+            {if not $amcCollectReturn}
+                <input type="checkbox" id="controlled_substance_flag" name="controlled_substance_flag" />
+            {else}
+                <input type="checkbox" id="controlled_substance_flag" name="controlled_substance_flag" checked="checked" />
+            {/if}
+            <span class="text">{xlt t='Controlled Substance?'}</span><br />
+            </div>
+        </div>
+        {/if}
+
+        <div class="form-group mt-3">
+            <label>{xlt t='Currently Active'}</label>
+            <input class="input-sm" type="checkbox" name="active" value="1"{if empty($prescription->id) || $prescription->get_active() > 0} checked{/if} />
+        </div>
+
+        <div class="form-group mt-3">
+            <label>{xlt t='Starting Date'}</label>
+            <input type="text" size="10" class="datepicker form-control" name="start_date" id="start_date" value="{$prescription->start_date|oeFormatShortDate|attr}" />
+        </div>
+        <div class="form-group mt-3">
+            <label>{xlt t='Provider'}</label>
+            {html_options class="input-sm form-control" name="provider_id" options=$prescription->provider->utility_provider_array() selected=$prescription->provider->get_id()}
+            <input type="hidden" name="patient_id" value="{$prescription->patient->id|attr}" />
+        </div>
+        <div class="form-group mt-3">
+            <label class="mr-2">{xlt t='Drug'}</label>
+            <div class="form-check-inline">
+                <label class="form-check-label" title="{xlt t='Search from native inventory drugs table'}">
+                    <input type="radio" class="form-check-input" name="rxcui_select" checked />{xlt t='Use Default'}
+                </label>
+            </div>
+            <div class="form-check-inline">
+                <label class="form-check-label" title="{xlt t='Search from external RxNorm table. Vocabulary RXNORM'}">
+                    <input type="radio" class="form-check-input" name="rxcui_select" {if empty($RXNORMS_AVAILABLE)} disabled{else} checked{/if} />{xlt t='Use RxNorm'}
+                </label>
+            </div>
+            <div class="form-check-inline">
+                <label class="form-check-label" title="{xlt t='Search from native loaded RxCUI table.'}">
+                    <input type="radio" class="form-check-input" name="rxcui_select" {if empty($RXCUI_AVAILABLE)}disabled{else} checked{/if}  />{xlt t='Use RxCUI'}
+                </label>
+            </div>
+            <select class="input-sm form-control" type="input" name="drug" id="drug"></select>
+            <a href="javascript:;" id="druglookup" class="small" name="B4" onclick="$('#hiddendiv').show(); document.getElementById('hiddendiv').innerHTML='&lt;iframe src=&quot;controller.php?prescription&amp;lookup&amp;drug=&quot; width=&quot;100%&quot;height=&quot;75&quot; scrolling=&quot;no&quot; frameborder=&quot;no&quot;&gt;&lt;/iframe&gt;'">
+                ({xlt t='Search Web API'})
+            </a>
+            <div class="jumbotron jumbotron-fluid" id="hiddendiv" style="display: none">&nbsp;</div>
+        </div>
+        {if !empty($DRUG_ARRAY_VALUES)}
+        <div class="form-group mt-3">
+            <label>&nbsp; {xlt t='Drug Inventory'}</label>
+            <select class="input-sm form-control" name="drug_id" onchange="drugselected(this)">
+                {html_options values=$DRUG_ARRAY_VALUES output=$DRUG_ARRAY_OUTPUT selected=$prescription->get_drug_id()}
+            </select>
+            <input type="hidden" name="rxnorm_drugcode" value="{$prescription->rxnorm_drugcode|attr}">
+        </div>
+        {/if}
+        <div class="form-group mt-3" id="lot_section" style="display: none;">
+            <label>{xlt t='Lot Number'}</label>
+            <select class="input-sm form-control" name="lot_number" id="lot_number">
+                <option value="">{xlt t='Select Lot'}</option>
+            </select>
+        </div>
+        
+        <!-- Packet Component Drugs section -->
+        <div class="form-group mt-3" id="packet_drugs_section" style="display: none;">
+            <label>{xlt t='Packet Component Drugs (Read-Only)'}</label>
+            <div id="packet_drugs_table" style="overflow-x: auto;">
+                <!-- Table will be loaded here via AJAX -->
+            </div>
+        </div>
+      
+        {if $SIMPLIFIED_PRESCRIPTIONS && !$prescription->size}
+        <div class="form-group row mt-3 d-none" id="dose_units_section">
+        {else}
+        <div class="form-group row mt-3" id="dose_units_section">
+        {/if}
+            <div class="col-md-6">
+                <label>{xlt t='Dose'}</label>
+                <input class="input-sm form-control" type="text" name="size" id="size" size="11" maxlength="10" value="{$prescription->size|attr}"/>
+            </div>
+            <div class="col-md-6">
+                <label>{xlt t='Units'}</label>
+                <select class="input-sm form-control" name="unit" id="unit">{html_options options=$prescription->unit_array selected=$prescription->unit}</select>
+            </div>
+        </div>
+
+        <!-- New section for Concentration/Total Volume fields -->
+        <div class="form-group row mt-3" id="concentration_section">
+            <div class="col-md-6">
+                <label>{xlt t='Concentration Volume'}</label>
+                <input class="input-sm form-control" type="text" name="concentration_volume" id="concentration_volume" size="11" maxlength="20" value="{$prescription->concentration_volume|attr}"/>
+            </div>
+            <div class="col-md-6">
+                <label>{xlt t='Concentration Volume Unit'}</label>
+                <select class="input-sm form-control" name="concentration_volume_unit" id="concentration_volume_unit">{html_options options=$prescription->unit_array selected=$prescription->concentration_volume_unit}</select>
+            </div>
+        </div>
+        <div class="form-group row mt-3" id="total_volume_section">
+            <div class="col-md-6">
+                <label>{xlt t='Total Volume'}</label>
+                <input class="input-sm form-control" type="text" name="total_volume" id="total_volume" size="11" maxlength="20" value="{$prescription->total_volume|attr}"/>
+            </div>
+            <div class="col-md-6">
+                <label>{xlt t='Total Volume Unit'}</label>
+                <select class="input-sm form-control" name="total_volume_unit" id="total_volume_unit">{html_options options=$prescription->unit_array selected=$prescription->total_volume_unit}</select>
+            </div>
+        </div>
+
+        <div class="form-group row mt-3">
+            {if $SIMPLIFIED_PRESCRIPTIONS && !$prescription->form && !$prescription->route && !$prescription->interval}
+                <div class="col-12">
+                    <label>{xlt t='Directions'}</label>
+                    <input class="input-sm form-control" type="text" name="dosage" id="dosage" size="30" maxlength="100" value="{$prescription->dosage|attr}" />
+                </div>
+                <input type="hidden" name="form" id="form" value="0" />
+                <input type="hidden" name="route" id="route" value="0" />
+                <input type="hidden" name="interval" id="interval" value="0" />
+            {else}
+                <div class="col-md-3">
+                    <label>{xlt t='Directions'}</label>
+                    <input class="input-sm form-control" type="text" name="dosage" id="dosage" size="2" maxlength="10" value="{$prescription->dosage|attr}"/>
+                </div>
+                <div class="col-md-3">
+                    <label>{xlt t='Form'}</label>
+                    <select class="input-sm form-control" name="form" id="form">{html_options options=$prescription->form_array selected=$prescription->form}</select>
+                </div>
+                <div class="col-md-3">
+                    <label>{xlt t='Route'}</label>
+                    <select class="input-sm form-control" name="route" id="route">{html_options options=$prescription->route_array selected=$prescription->route}</select>
+                </div>
+                <div class="col-md-3">
+                    <label>{xlt t='Frequency'}</label>
+                    <select class="input-sm form-control" name="interval" id="interval">{html_options options=$prescription->interval_array selected=$prescription->interval}</select>
+                </div>
+            {/if}
+        </div>
+        <div class="form-group row mt-3">
+            <div class="col-12">
+                <label>{xlt t='Refills'}</label>
+            </div>
+            <div class="col">
+                {html_options name="refills" class="form-control" options=$prescription->refills_array selected=$prescription->refills}
+            </div>
+            {if $SIMPLIFIED_PRESCRIPTIONS}
+                <input type="hidden" id="per_refill" name="per_refill" value="{$prescription->per_refill|attr}" />
+            {/if}
+        </div>
+         <div class="form-group mt-3" id="quantity_section">
+            <label>{xlt t='Quantity'}</label>
+            <input class="input-sm form-control" type="text" name="quantity" id="quantity" size="10" maxlength="31"
+                value="{$prescription->quantity|attr}" onchange="quantityChanged()" />
+         </div>
+
+        <div class="form-group mt-3">
+            <label>{xlt t='Notes'}</label>
+            <textarea class="form-control" name="note" cols="30" rows="1" wrap="virtual">{$prescription->note|text}</textarea>
+        </div>
+        <div class="form-group row mt-3">
+            {if $WEIGHT_LOSS_CLINIC}
+                <label>{xlt t='Substitution'}</label>
+                {html_options name="substitute" class="form-control" options=$prescription->substitute_array selected=$prescription->substitute}
+            {else}
+                <div class="col-12">
+                    <label>{xlt t='Add to Medication List'}</label>
+                </div>
+                <div class="col">
+                    {html_radios class="input-sm" name="medication" options=$prescription->medication_array selected='1'}
+                </div>
+                <div class="col">
+                    <label class="mr-1">{xlt t='Substitutions (external use)'}</label>
+                    {html_options class="input-sm form-control" name="substitute" options=$prescription->substitute_array selected=$prescription->substitute}
+                </div>
+            {/if}
+        </div>
+
+        <input type="hidden" name="id" value="{$prescription->id|attr}" />
+        <input type="hidden" name="process" value="{$PROCESS|attr}" />
+        <input type="hidden" id="rxnorm_drugcode" name="rxnorm_drugcode" value="{$prescription->rxnorm_drugcode|attr}" />
+
+        <script>
+            {if !empty($ENDING_JAVASCRIPT)}{$ENDING_JAVASCRIPT}{/if}
+        </script>
+    </form>
+</div>
+
+<!-- for the fancy jQuery stuff -->
+<script>
+
+function submitfun() {
+    top.restoreSession();
+    
+    if (CheckForErrors(this)) {
+        document.forms["prescribe"].submit();
+        alert("Prescription ordered successfully!");
+    }
+    else {
+        return false;
+    }
+}
+
+function showPyxisLoading() {
+    // Create loading overlay
+    var loadingDiv = document.createElement('div');
+    loadingDiv.id = 'pyxis-loading';
+    loadingDiv.innerHTML = `
+        <div class="alert alert-info pyxis-status-alert" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; min-width: 500px; font-size: 1.3em; padding: 1.2em; text-align: center; border: 2px solid; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <span style="font-size: 1em;">Sending prescription to Pyxis and waiting for response...</span>
+            <div class="spinner-border ml-2" role="status" style="width: 1.2em; height: 1.2em;">
+                <span class="sr-only">Loading...</span>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingDiv);
+}
+
+function hidePyxisLoading() {
+    var loadingDiv = document.getElementById('pyxis-loading');
+    if (loadingDiv) {
+        loadingDiv.remove();
+    }
+}
+
+function iframetopardiv(string){
+    var name=string
+    document.getElementById('drug').value=name;
+    $("#hiddendiv").html( "&nbsp;" );
+    $('#hiddendiv').hide();
+}
+
+function cancelParlookup () {
+    $('#hiddendiv').hide();
+    $("#hiddendiv").html( "&nbsp;" );
+}
+
+$(function () {
+
+    $("#save,#back").on("click",function(){
+        $("#clearButton",window.parent.document).css("display", "none");
+        $("#backButton",window.parent.document).css("display", "none");
+        $("#addButton",window.parent.document).css("display", "");
+    });
+
+
+    {if $GLOBALS.weno_rx_enable}
+
+        $("#drug").select2({
+        ajax: {
+            url: "library/ajax/drug_autocomplete/search.php",
+            dataType: 'json',
+            data: function(params) {
+                return {
+                  csrf_token_form: {$CSRF_TOKEN_FORM|js_escape},
+                  term: params.term
+
+                };
+            },
+            processResults: function(data) {
+                return  {
+                    results: $.map(data, function(item, index) {
+                      return {
+                            text: item,
+                            id: index,
+                            value: item
+                        }
+                    })
+                };
+                return x;
+            },
+            cache: true,
+            minimumInputLength: 3
+            }
+          });
+    {else}
+
+        $("#drug").select2({
+        ajax: {
+            url: "library/ajax/prescription_drugname_lookup.php",
+            dataType: 'json',
+            data: function(params) {
+                return {
+                  csrf_token_form: {$CSRF_TOKEN_FORM|js_escape},
+
+                  term: params.term,
+                  use_rxnorm: document.prescribe.rxcui_select[1].checked,
+                  use_rxcui: document.prescribe.rxcui_select[2].checked
+                }
+            },
+            processResults: function(data) {
+                return  {
+                    results: $.map(data, function(item, index) {
+                        return {
+                            text: item['display_name'],
+                            id: item['id_name'],
+                            value: item['display_name']
+                        }
+                    })
+                };
+                return x;
+            },
+            cache: true
+            },
+            tags: true,
+            minimumInputLength: 3
+          });
+    {/if}
+    {if $prescription->drug}
+
+        // Show the current drug name in the select
+        var newOption = new Option({$prescription->drug|js_escape}, {$prescription->drug|js_escape}, true, true);
+        $('#drug').append(newOption).trigger('change');
+    {/if}
+
+
+    $("#drug").focus();
+    $("#prescribe").submit(function() { return CheckForErrors(this) });
+});
+
+// check the form for required fields before submitting
+var CheckForErrors = function(eObj) {
+    // REQUIRED FIELDS
+    if (CheckRequired('drug') == false) { return false; }
+    if (CheckRequired('quantity') == false) { return false; }
+    //if (CheckRequired('unit') == false) { return false; }
+    //if (CheckRequired('size') == false) { return false; }
+    if (CheckRequired('dosage') == false) { return false; }
+    //if (CheckRequired('form') == false) { return false; }
+    //if (CheckRequired('route') == false) { return false; }
+    //if (CheckRequired('interval') == false) { return false; }
+
+    return top.restoreSession();
+};
+
+function CheckRequired(objID) {
+
+    // for text boxes
+    if ($('#'+objID).is('input')) {
+        if ($('#'+objID).val() == "") {
+            alert({xlj t='Missing a required field and will be highlighted'});
+            $('#'+objID).css("backgroundColor", "pink");
+            return false;
+        }
+    }
+
+    // for select boxes
+    if ($('#'+objID).is('select')) {
+        if ($('#'+objID).val() == "0") {
+            alert({xlj t='Missing a required field'});
+            $('#'+objID).css("backgroundColor", "pink");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+    $(document).on('select2:select', 'select#drug', function(e) {
+        let idx = this.selectedIndex;
+        if (idx === 0) {
+            // already selected.
+            return false;
+        }
+        let optionText = document.getElementById("drug").options[idx].text;
+        let rxcode = (optionText.split('(RxCUI:').pop().split(')')[0]).trim();
+        $("#rxnorm_drugcode").val(rxcode);
+    });
+
+$(function () {
+    {datetimepickerSupport input='format'}
+    
+    // Hide loading if page has reloaded with status
+    hidePyxisLoading();
+});</script>
+
+
+
+</body>
+</html>
