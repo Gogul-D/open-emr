@@ -761,6 +761,134 @@ if (!empty($_POST['form_action']) && ($_POST['form_action'] == "save")) {
 
         // done with EVENT insert/update statements
 
+        // -------------------------------------------------------
+        // Send appointment confirmation email to patient
+        // -------------------------------------------------------
+        if (!empty($_POST['form_pid'])) {
+            $apptPatientRow = sqlQuery(
+                "SELECT email, fname, lname FROM patient_data WHERE pid = ?",
+                [$_POST['form_pid']]
+            );
+            $apptPatientEmail = trim($apptPatientRow['email'] ?? '');
+            $apptMode         = trim($_POST['form_mode'] ?? '');
+
+            if (!empty($apptPatientEmail)) {
+                require_once($GLOBALS['srcdir'] . '/classes/postmaster.php');
+                $apptSenderName  = $GLOBALS['patient_reminder_sender_name'] ?? 'Clinic';
+                $apptSenderEmail = $GLOBALS['patient_reminder_sender_email'] ?? '';
+
+                if (!empty($apptSenderEmail)) {
+                    $apptPatientName = trim(($apptPatientRow['fname'] ?? '') . ' ' . ($apptPatientRow['lname'] ?? ''));
+                    $apptDate        = $_POST['form_date'] ?? '';
+                    $apptHour        = str_pad($_POST['form_hour'] ?? '0', 2, '0', STR_PAD_LEFT);
+                    $apptMin         = str_pad($_POST['form_minute'] ?? '00', 2, '0', STR_PAD_LEFT);
+                    $apptAmpm        = strtoupper($_POST['form_ampm'] ?? '');
+                    $apptTimeStr     = $apptHour . ':' . $apptMin . ' ' . $apptAmpm;
+                    $apptModeLabel   = !empty($apptMode) ? strtoupper($apptMode) : 'In-Person';
+                    $apptModeNote    = '';
+                    if ($apptMode === 'gmeet') {
+                        $apptModeNote = 'Your appointment will be conducted via <strong>Google Meet</strong>. The meeting link will be shared with you shortly.';
+                    } elseif ($apptMode === 'zoho') {
+                        $apptModeNote = 'Your appointment will be conducted via <strong>Zoho Meeting</strong>. The meeting link will be shared with you shortly.';
+                    }
+
+                    $apptSubject = "Appointment Confirmation – " . $apptSenderName;
+
+                    $apptHtmlBody = '<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:30px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#1a73e8;padding:28px 36px;">
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:600;">Appointment Confirmation</h1>
+            <p style="margin:4px 0 0;color:#d0e6ff;font-size:13px;">' . htmlspecialchars($apptSenderName) . '</p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:32px 36px;">
+            <p style="margin:0 0 20px;font-size:15px;color:#333;">Dear <strong>' . htmlspecialchars($apptPatientName) . '</strong>,</p>
+            <p style="margin:0 0 24px;font-size:15px;color:#555;">Your appointment has been successfully confirmed. Here are your appointment details:</p>
+
+            <!-- Details Card -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f6ff;border-left:4px solid #1a73e8;border-radius:4px;margin-bottom:24px;">
+              <tr>
+                <td style="padding:20px 24px;">
+                  <table width="100%" cellpadding="6" cellspacing="0">
+                    <tr>
+                      <td style="color:#888;font-size:13px;font-weight:600;text-transform:uppercase;width:40%;">Date</td>
+                      <td style="color:#222;font-size:15px;font-weight:600;">' . htmlspecialchars($apptDate) . '</td>
+                    </tr>
+                    <tr>
+                      <td style="color:#888;font-size:13px;font-weight:600;text-transform:uppercase;">Time</td>
+                      <td style="color:#222;font-size:15px;font-weight:600;">' . htmlspecialchars($apptTimeStr) . '</td>
+                    </tr>
+                    <tr>
+                      <td style="color:#888;font-size:13px;font-weight:600;text-transform:uppercase;">Mode</td>
+                      <td style="color:#1a73e8;font-size:15px;font-weight:700;">' . htmlspecialchars($apptModeLabel) . '</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            ' . (!empty($apptModeNote) ? '<p style="margin:0 0 24px;font-size:14px;color:#444;background:#fff8e1;border:1px solid #ffe082;border-radius:4px;padding:14px 18px;">&#9432;&nbsp;' . $apptModeNote . '</p>' : '') . '
+
+            <p style="margin:0 0 8px;font-size:14px;color:#555;">If you have any questions or need to reschedule, please contact us.</p>
+            <p style="margin:0;font-size:14px;color:#555;">Thank you for choosing <strong>' . htmlspecialchars($apptSenderName) . '</strong>.</p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f4f6f8;padding:18px 36px;border-top:1px solid #e8eaed;">
+            <p style="margin:0;font-size:12px;color:#999;text-align:center;">&copy; ' . date('Y') . ' ' . htmlspecialchars($apptSenderName) . ' &mdash; This is an automated message, please do not reply.</p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>';
+
+                    $apptPlainBody  = "Dear " . $apptPatientName . ",\n\n";
+                    $apptPlainBody .= "Your appointment has been confirmed.\n\n";
+                    $apptPlainBody .= "Date : " . $apptDate . "\n";
+                    $apptPlainBody .= "Time : " . $apptTimeStr . "\n";
+                    $apptPlainBody .= "Mode : " . $apptModeLabel . "\n\n";
+                    if ($apptMode === 'gmeet') {
+                        $apptPlainBody .= "Your appointment will be via Google Meet. The link will be sent shortly.\n\n";
+                    } elseif ($apptMode === 'zoho') {
+                        $apptPlainBody .= "Your appointment will be via Zoho Meeting. The link will be sent shortly.\n\n";
+                    }
+                    $apptPlainBody .= "Thank you,\n" . $apptSenderName;
+
+                    try {
+                        $apptMailer = new MyMailer(true);
+                        $apptMailer->FromName = $apptSenderName;
+                        $apptMailer->Sender   = $apptSenderEmail;
+                        $apptMailer->From     = $apptSenderEmail;
+                        $apptMailer->AddAddress($apptPatientEmail, $apptPatientName);
+                        $apptMailer->AddReplyTo($apptSenderEmail, $apptSenderName);
+                        $apptMailer->Subject  = $apptSubject;
+                        $apptMailer->MsgHTML($apptHtmlBody);
+                        $apptMailer->AltBody  = $apptPlainBody;
+                        $apptMailer->Send();
+                    } catch (Exception $apptMailEx) {
+                        error_log("Appointment email send failed: " . $apptMailEx->getMessage());
+                    }
+                }
+            }
+        }
+        // -------------------------------------------------------
+
         DOBandEncounter(isset($eid) ? $eid : null);
 } elseif (!empty($_POST['form_action']) && ($_POST['form_action'] == "delete")) { //    DELETE EVENT(s)
     $appointmentService = new \OpenEMR\Services\AppointmentService();
