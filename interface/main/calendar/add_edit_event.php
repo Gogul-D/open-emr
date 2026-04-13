@@ -622,6 +622,7 @@ if (!empty($_POST['form_action']) && ($_POST['form_action'] == "save")) {
                     "pc_time = NOW(), " .
                     "pc_hometext = '" . add_escape_custom($_POST['form_comments']) . "', " .
                     "pc_room = '" . add_escape_custom($_POST['form_room']) . "', " .
+                    "pc_mode = '" . add_escape_custom($_POST['form_mode'] ?? '') . "', " .
                     "pc_informant = '" . add_escape_custom($_SESSION['authUserID']) . "', " .
                     "pc_eventDate = '" . add_escape_custom($event_date) . "', " .
                     "pc_endDate = '" . add_escape_custom($_POST['form_enddate']) . "', " .
@@ -718,6 +719,7 @@ if (!empty($_POST['form_action']) && ($_POST['form_action'] == "save")) {
                 "pc_time = NOW(), " .
                 "pc_hometext = '" . add_escape_custom($_POST['form_comments']) . "', " .
                 "pc_room = '" . add_escape_custom($_POST['form_room']) . "', " .
+                "pc_mode = '" . add_escape_custom($_POST['form_mode'] ?? '') . "', " .
                 "pc_informant = '" . add_escape_custom($_SESSION['authUserID']) . "', " .
                 "pc_eventDate = '" . add_escape_custom($event_date) . "', " .
                 "pc_endDate = '" . add_escape_custom($_POST['form_enddate']) . "', " .
@@ -808,6 +810,7 @@ if (!empty($_REQUEST['patientid'])) {
     $patientname = null;
     $patienttitle = array();
     $pcroom = "";
+    $pcmode = "";
     $hometext = "";
     $row = array();
     $informant = "";
@@ -861,6 +864,7 @@ if ($eid) {
 
     $recurrence_end_date = ($row['pc_endDate'] && $row['pc_endDate'] != '0000-00-00') ? $row['pc_endDate'] : null;
     $pcroom = $row['pc_room'];
+    $pcmode = $row['pc_mode'] ?? '';
     $hometext = $row['pc_hometext'];
     if (substr($hometext, 0, 6) == ':text:') {
         $hometext = substr($hometext, 6);
@@ -1729,6 +1733,19 @@ if (empty($_GET['prov'])) { ?>
     </div>
     <?php } ?>
 </div><!-- status row -->
+<div class="form-row mx-2">
+    <div class="col-sm form-group">
+        <label for="form_mode"><?php echo xlt('Mode'); ?>:</label>
+        <select class='form-control' name='form_mode' id='form_mode'>
+            <option value=""><?php echo xlt('-- Select Mode --'); ?></option>
+            <option value="gmeet" <?php echo ($pcmode == 'gmeet') ? 'selected' : ''; ?>><?php echo xlt('gmeet'); ?></option>
+            <option value="zoho" <?php echo ($pcmode == 'zoho') ? 'selected' : ''; ?>><?php echo xlt('zoho'); ?></option>
+            <option value="jitsi" <?php echo ($pcmode == 'jitsi') ? 'selected' : ''; ?>><?php echo xlt('jitsi'); ?></option>
+            <option value="doxy" <?php echo ($pcmode == 'doxy') ? 'selected' : ''; ?>><?php echo xlt('doxy'); ?></option>
+        </select>
+    </div>
+    <div class="col-sm form-group"></div>
+</div><!-- mode row -->
 <div class="form-row mx-2">
     <div class="col-sm form-group">
         <label><?php echo xlt('Comments'); ?>:</label>

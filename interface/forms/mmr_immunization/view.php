@@ -83,6 +83,7 @@ function radioChecked($field, $val, $record) {
 </head>
 <body class="body_top">
 
+<div class="container-fluid py-2">
 <form method="post"
       action="<?php echo $rootdir; ?>/forms/<?php echo $form_folder; ?>/save.php?mode=update&id=<?php echo attr_url($_GET["id"]); ?>"
       name="mmr_form"
@@ -95,7 +96,7 @@ function radioChecked($field, $val, $record) {
          HEADER
     ================================================================ -->
     <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-        <h4 class="mb-0"><?php echo xlt($form_name); ?></h4>
+        <h4 class="mb-0 text-primary"><?php echo xlt($form_name); ?></h4>
         <div>
             <button type="button" class="btn btn-primary btn-save mr-1"><?php echo xlt('Save Changes'); ?></button>
             <button type="button" class="btn btn-secondary btn-dontsave mr-1"><?php echo xlt("Cancel Changes"); ?></button>
@@ -105,8 +106,8 @@ function radioChecked($field, $val, $record) {
     <!-- ================================================================
          SECTION 1: DEMOGRAPHICS (read-only)
     ================================================================ -->
-    <fieldset class="card mb-3">
-        <legend class="card-header d-flex align-items-center font-weight-bold py-2 px-3">
+    <fieldset class="card mb-4 shadow-sm">
+        <legend class="mmr-card-header">
             <input type="checkbox" checked disabled class="mr-2">
             <?php echo xlt('Demographics'); ?>
         </legend>
@@ -244,8 +245,8 @@ function radioChecked($field, $val, $record) {
     <!-- ================================================================
          SECTION 2: MMR IMMUNIZATION
     ================================================================ -->
-    <fieldset class="card mb-3">
-        <legend class="card-header d-flex align-items-center font-weight-bold py-2 px-3">
+    <fieldset class="card mb-4 shadow-sm">
+        <legend class="mmr-card-header">
             <input type="checkbox" checked disabled class="mr-2">
             <?php echo xlt('MMR Immunization'); ?>
         </legend>
@@ -300,7 +301,7 @@ function radioChecked($field, $val, $record) {
             </div>
 
             <!-- Medical and Social History -->
-            <p class="font-weight-bold mb-2"><?php echo xlt('Medical and Social History'); ?>:</p>
+            <p class="mmr-section-title"><?php echo xlt('Medical and Social History'); ?></p>
             <?php
             $questions = [
                 ['sick_today',
@@ -316,18 +317,19 @@ function radioChecked($field, $val, $record) {
                 ['pregnant',
                  'Is the Child/Adult pregnant or is there a chance she could become pregnant during the next month?'],
             ];
-            foreach ($questions as $q) :
+            foreach ($questions as $i => $q) :
                 [$field, $label] = $q;
+                $rowClass = ($i % 2 === 0) ? 'mmr-question-row' : 'mmr-question-row mmr-question-row-alt';
             ?>
-            <div class="d-flex justify-content-between align-items-start border-bottom py-2">
-                <div class="flex-grow-1 pr-3" style="font-size:13px;"><?php echo xlt($label); ?></div>
-                <div class="d-flex flex-column" style="min-width:70px;">
+            <div class="<?php echo $rowClass; ?>">
+                <div class="mmr-question-text"><?php echo xlt($label); ?></div>
+                <div class="mmr-radio-group">
                     <div class="form-check">
                         <input class="form-check-input" type="radio"
                                name="<?php echo attr($field); ?>" value="NO"
                                id="<?php echo attr($field); ?>_no"
                                <?php echo radioChecked($field, 'NO', $record); ?>>
-                        <label class="form-check-label" for="<?php echo attr($field); ?>_no">
+                        <label class="form-check-label font-weight-bold" for="<?php echo attr($field); ?>_no">
                             <?php echo xlt('NO'); ?>
                         </label>
                     </div>
@@ -336,7 +338,7 @@ function radioChecked($field, $val, $record) {
                                name="<?php echo attr($field); ?>" value="YES"
                                id="<?php echo attr($field); ?>_yes"
                                <?php echo radioChecked($field, 'YES', $record); ?>>
-                        <label class="form-check-label" for="<?php echo attr($field); ?>_yes">
+                        <label class="form-check-label font-weight-bold" for="<?php echo attr($field); ?>_yes">
                             <?php echo xlt('YES'); ?>
                         </label>
                     </div>
@@ -346,8 +348,8 @@ function radioChecked($field, $val, $record) {
 
             <!-- Vaccine Consent -->
             <div class="mt-4 pt-3 border-top">
-                <p class="font-weight-bold mb-2"><?php echo xlt('Vaccine Consent'); ?>:</p>
-                <div class="p-3 mb-3 border rounded bg-light" style="font-size:12px;">
+                <p class="mmr-section-title"><?php echo xlt('Vaccine Consent'); ?></p>
+                <div class="mmr-consent-box mb-3">
                     <?php echo xlt('I have read, or have has explained to me, the Vaccine Information Statement about MMR vaccination. I have had a chance to ask questions, which were answered to my satisfaction, and I understand the benefit and risks of the vaccination as described. I request that the MMR vaccination be given to me (or the person named above for whom I am authorized to make this request).'); ?>
                 </div>
                 <div class="row">
@@ -399,8 +401,8 @@ function radioChecked($field, $val, $record) {
 
             <!-- Texas ImmTrac2 Consent -->
             <div class="mt-4 pt-3 border-top">
-                <p class="font-weight-bold mb-2"><?php echo xlt('Texas Immunization Registry (Immtrac2) Consent'); ?>:</p>
-                <div class="p-3 mb-3 border rounded bg-light" style="font-size:12px;">
+                <p class="mmr-section-title"><?php echo xlt('Texas Immunization Registry (ImmTrac2) Consent'); ?></p>
+                <div class="mmr-consent-box mb-3">
                     <?php echo xlt('* I understand that, by granting the consent below, I am authorizing the release of my immunization information to DSHS and I further understand DSHS will include this information in the Texas Immunization Registry. Once in the Texas Immunization Registry, my immunization information may by law be accessed by: a Texas physician, or other health-care provider legally authorized to administer vaccines, for treatment of the individual as a patient; a Texas school in which the individual is enrolled; a Texas public health district or local health department, for public health purposes within their areas of jurisdiction; a state agency having legal custody of the individual; a payor, currently authorized by the Texas Department of Insurance to operate in Texas for immunization records relating to the specific individual covered under the payor\'s policy. I understand that I may withdraw this consent at any time by submitting a completed Withdrawal of Consent Form in writing to the Texas Department of State Health Services, Texas Immunization Registry.'); ?>
                 </div>
                 <div class="row">
@@ -480,16 +482,86 @@ function radioChecked($field, $val, $record) {
     </div>
 
 </form>
+</div><!-- /container-fluid -->
 
 <style>
+/* ── Labels ─────────────────────────────────────────── */
 .mmr-label {
     font-weight: 700;
     font-size: 11px;
     color: #c0392b;
     text-transform: uppercase;
-    letter-spacing: .03em;
-    margin-bottom: 2px;
+    letter-spacing: .04em;
+    margin-bottom: 3px;
     display: block;
+}
+
+/* ── Section card header ─────────────────────────────── */
+.mmr-card-header {
+    background-color: #2c6fad;
+    color: #fff;
+    padding: 9px 14px;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px 4px 0 0;
+    margin: 0;
+}
+.mmr-card-header input[type=checkbox] {
+    margin-right: 8px;
+    accent-color: #fff;
+}
+
+/* ── Section sub-title ───────────────────────────────── */
+.mmr-section-title {
+    font-weight: 700;
+    font-size: 12px;
+    color: #2c6fad;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    border-bottom: 2px solid #2c6fad;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+    margin-top: 8px;
+}
+
+/* ── Medical history question rows ───────────────────── */
+.mmr-question-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 10px;
+    border-bottom: 1px solid #dee2e6;
+    background-color: #fff;
+}
+.mmr-question-row-alt {
+    background-color: #f8f9fa;
+}
+.mmr-question-text {
+    flex-grow: 1;
+    padding-right: 24px;
+    font-size: 13px;
+    color: #333;
+    line-height: 1.5;
+}
+.mmr-radio-group {
+    min-width: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+/* ── Consent text boxes ──────────────────────────────── */
+.mmr-consent-box {
+    background-color: #f0f7ff;
+    border: 1px solid #b8d4f0;
+    border-left: 4px solid #2c6fad;
+    border-radius: 4px;
+    padding: 12px 14px;
+    font-size: 12px;
+    color: #444;
+    line-height: 1.6;
 }
 </style>
 
